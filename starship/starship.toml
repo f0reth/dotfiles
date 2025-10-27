@@ -1,0 +1,56 @@
+# エディターの補完を設定スキーマに合わせて取得
+'$schema' = 'https://starship.rs/config-schema.json'
+
+# シェルのプロンプトの間に空行を挿入する
+add_newline = true
+
+[directory]
+format = '[$path]($style) '
+truncation_length = 8
+truncation_symbol = '...'
+truncate_to_repo = false
+
+[git_branch]
+format = 'on [$symbol$branch]($style) '
+
+[bun]
+format = 'via [$symbol$version]($style) '
+
+[nodejs]
+format = 'via [$symbol$version]($style) '
+detect_extensions = ['js', 'mjs', 'cjs', 'ts', 'mts', 'cts']
+detect_files = ['package.json', '.node-version', '!bunfig.toml', '!bun.lockb']
+detect_folders = ['node_modules']
+
+[golang]
+format = 'via [$symbol($version )($mod_version )]($style) '
+detect_extensions = ['go']
+detect_files = [
+	'go.mod',
+	'go.sum',
+	'go.work',
+	'glide.yaml',
+	'Gopkg.yml',
+	'Gopkg.lock',
+	'.go-version',
+]
+detect_folders = ['Godeps']
+
+[python]
+format = 'via [${symbol}${pyenv_prefix}(${version} )(\($virtualenv\) )]($style) '
+python_binary = 'python3'
+detect_extensions = ['py']
+detect_files = [
+	'.python-version',
+	'Pipfile',
+	'__init__.py',
+	'pyproject.toml',
+	'requirements.txt',
+	'setup.py',
+	'tox.ini',
+]
+
+[rust]
+format = 'via [$symbol$version]($style) '
+detect_extensions = ['rs']
+detect_files = ['Cargo.toml']

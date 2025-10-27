@@ -1,0 +1,12 @@
+alias ls='eza'
+alias ll='eza -la'
+alias la='eza -a'
+alias lt='eza --tree'
+alias l='eza -l'
+
+alias cat='batcat'
+
+alias grep='rg'
+
+alias vim='nvim'
+alias vi='nvim'
