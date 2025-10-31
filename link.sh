@@ -18,10 +18,6 @@ log_warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
 }
 
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
 log_success() {
     echo -e "${BLUE}[SUCCESS]${NC} $1"
 }
@@ -56,7 +52,7 @@ create_symlink() {
     fi
 
     # シンボリックリンクを作成
-    sudo ln -sf "$source" "$target"
+    ln -sf "$source" "$target"
     log_success "リンク作成: $target -> $source"
 }
 
