@@ -10,20 +10,18 @@ $env:EZA_CONFIG_DIR = "C:\Users\daich\OneDrive\ドキュメント\PowerShell\con
 # 関数設定
 # =================================
 # ディレクトリ操作
-function l {
-    eza @args
-}
-
 function ll {
     eza -aahl --git @args
 }
 
-function la {
-    eza -aa @args
-}
-
+# 引数で階層レベル指定可能
 function lt {
-    eza --tree --level=3 @args
+    param(
+        [int]$level = 3,   # デフォルトは3階層
+        [Parameter(ValueFromRemainingArguments = $true)]
+        $args
+    )
+    eza --tree --level=$level @args
 }
 
 # ファイル操作
@@ -60,6 +58,7 @@ function pwd { Get-Location }
 Set-Alias -Name vi -Value nvim
 Set-Alias -Name vim -Value nvim
 Set-Alias -Name grep -Value Select-String
+Set-Alias -Name ls -Value eza
 
 # =================================
 # プロンプト読み込み
@@ -88,3 +87,4 @@ catch {
 # StarShip読み込み
 # =================================
 Invoke-Expression (&starship init powershell)
+
