@@ -57,7 +57,7 @@ function pwd { Get-Location }
 # =================================
 Set-Alias -Name vi -Value nvim
 Set-Alias -Name vim -Value nvim
-Set-Alias -Name grep -Value Select-String
+Set-Alias -Name grep -Value rg
 Set-Alias -Name ls -Value eza
 
 # =================================
@@ -87,4 +87,5 @@ catch {
 # StarShip読み込み
 # =================================
 Invoke-Expression (&starship init powershell)
+
 
