@@ -99,8 +99,13 @@ sudo groupadd docker 2>/dev/null || true
 sudo usermod -aG docker $USER
 
 # Docker サービスを有効化して起動
-sudo systemctl enable docker
-sudo systemctl start docker
+#sudo systemctl enable docker
+#sudo systemctl start docker
+# PC起動時にはDockerを起動させない
+sudo systemctl disable docker
+sudo systemctl disable containerd
+sudo systemctl stop docker.socket
+sudo systemctl stop docker.service
 
 sudo apt autoremove -y && sudo apt autoclean -y
 
