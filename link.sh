@@ -61,9 +61,9 @@ log_info "dotfiles のシンボリックリンクを作成中..."
 log_info "dotfiles ディレクトリ: $DOTFILES_DIR"
 
 # zsh
-create_symlink "$DOTFILES_DIR/.zshrc" "$HOME/.zshrc"
-create_symlink "$DOTFILES_DIR/.zshenv" "$HOME/.zshenv"
-create_symlink "$DOTFILES_DIR/.zsh_aliases" "$HOME/.zsh_aliases"
+create_symlink "$DOTFILES_DIR/zsh/.zshrc" "$HOME/.zshrc"
+create_symlink "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
+create_symlink "$DOTFILES_DIR/zsh/.zsh_aliases" "$HOME/.zsh_aliases"
 
 # Starship
 create_symlink "$DOTFILES_DIR/starship/starship.toml" "$HOME/.config/starship.toml"
