@@ -1,26 +1,32 @@
-# `sheldon` configuration file
-# ----------------------------
-#
-# You can modify this file directly or you can use one of the following
-# `sheldon` commands which are provided to assist in editing the config file:
-#
-# - `sheldon add` to add a new plugin to the config file
-# - `sheldon edit` to open up the config file in the default editor
-# - `sheldon remove` to remove a plugin from the config file
-#
-# See the documentation for more https://github.com/rossmacarthur/sheldon#readme
-
 shell = "zsh"
+
+# プラグインは記述順に読み込まれる
+# defer を適用したものは .zshrc の読み込み完了後 (compinit の後) に順番に読み込まれる
+[templates]
+defer = "{% for file in files %}zsh-defer source \"{{ file }}\"\n{% endfor %}"
 
 [plugins]
 
-# For example:
-#
-# [plugins.base16]
-# github = "chriskempson/base16-shell"
+# 遅延読み込み用 (defer テンプレートより前に読み込む必要がある)
+[plugins.zsh-defer]
+github = "romkatv/zsh-defer"
 
-[plugins.zsh-syntax-highlighting]
-github = "zsh-users/zsh-syntax-highlighting"
+# 補完定義の追加 (compinit より前に fpath へ追加する必要がある)
+[plugins.zsh-completions]
+github = "zsh-users/zsh-completions"
+dir = "src"
+apply = ["fpath"]
+
+# fzf で補完候補を選択 (compinit の後、ウィジェットをラップするプラグインより前に読み込む)
+[plugins.fzf-tab]
+github = "Aloxaf/fzf-tab"
+apply = ["defer"]
 
 [plugins.zsh-autosuggestions]
 github = "zsh-users/zsh-autosuggestions"
+apply = ["defer"]
+
+# シンタックスハイライト (最後に読み込む)
+[plugins.fast-syntax-highlighting]
+github = "zdharma-continuum/fast-syntax-highlighting"
+apply = ["defer"]

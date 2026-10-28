@@ -17,6 +17,9 @@ log_warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
 }
 
+# dotfiles ディレクトリのパス
+DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # システムアップデート
 log_info "システムをアップデート中..."
 sudo apt update && sudo apt upgrade -y
@@ -33,50 +36,15 @@ sudo apt install -y zsh
 log_info "デフォルトシェルを zsh に変更中..."
 chsh -s "$(which zsh)"
 
-# Starship のインストール
-log_info "Starship をインストール中..."
-sudo apt install -y starship
-
-# Sheldon のインストール
-log_info "Sheldon をインストール中..."
-curl --proto '=https' -fLsS https://rossmacarthur.github.io/install/crate.sh \
-    | bash -s -- --repo rossmacarthur/sheldon --to ~/.local/bin
-
-# eza のインストール
-log_info "eza をインストール中..."
-sudo apt install -y eza
-
-# ripgrep のインストール
-log_info "ripgrep をインストール中..."
-sudo apt install -y ripgrep
-
-# bat のインストール
-log_info "bat をインストール中..."
-sudo apt install -y bat
-
-# Neovim のインストール (最新版)
-log_info "Neovim をインストール中..."
-wget https://github.com/neovim/neovim/releases/download/stable/nvim-linux-x86_64.tar.gz
-sudo tar -C /opt -xzf nvim-linux-x86_64.tar.gz
-rm nvim-linux-x86_64.tar.gz
-sudo ln /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim
-
 # mise のインストール
 log_info "mise をインストール中..."
 curl https://mise.run | sh
 
-# uv のインストール
-log_info "uv をインストール中..."
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# lazygit のインストール
-log_info "lazygit をインストール中..."
-sudo apt install lazygit
-
-# bun のインストール
-log_info "bun をインストール中..."
-sudo apt install unzip
-curl -fsSL https://bun.com/install | bash
+# mise で管理するツール (Neovim, Starship, Sheldon, eza, ripgrep, bat, lazygit, uv, bun) のインストール
+# link.sh の実行前でも動くよう、dotfiles 内の設定ファイルを直接参照する
+log_info "mise でツールをインストール中..."
+export MISE_GLOBAL_CONFIG_FILE="$DOTFILES_DIR/mise/config.toml"
+~/.local/bin/mise install
 
 # Docker のインストール
 log_info "Docker をインストール中..."
@@ -95,7 +63,7 @@ echo \
     sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 sudo apt-get update
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Docker グループに現在のユーザーを追加
 log_info "Docker グループに現在のユーザーを追加中..."
@@ -115,12 +83,6 @@ log_warn "注意: zsh をデフォルトシェルとして使用するには、�
 echo ""
 echo -e "${GREEN}インストールされたツールのバージョン:${NC}"
 echo "zsh: $(zsh --version)"
-echo "starship: $(starship --version)"
-echo "sheldon: $(~/.local/bin/sheldon --version)"
-echo "eza: $(eza --version | head -n 1)"
-echo "ripgrep: $(rg --version | head -n 1)"
-echo "bat: $(batcat --version)"
-echo "neovim: $(/opt/nvim-linux-x86_64/bin/nvim --version | head -n 1)"
 echo "mise: $(~/.local/bin/mise --version)"
-echo "uv: $(~/.local/bin/uv --version)"
+~/.local/bin/mise ls --current
 echo "docker: $(docker --version)"

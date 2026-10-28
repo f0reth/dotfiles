@@ -27,6 +27,14 @@ setopt NO_BEEP                # ビープ音を鳴らさない
 setopt INTERACTIVE_COMMENTS   # コマンドラインでの#以降をコメントとして扱う
 
 # ------------------------------
+# mise
+# ------------------------------
+# mise で入れたツール (uv, sheldon, starship など) を以降で使うため最初に読み込む
+if (( $+commands[mise] )); then
+  eval "$(mise activate zsh)"
+fi
+
+# ------------------------------
 # 補完システム
 # ------------------------------
 zcompdump="${ZDOTDIR:-$HOME}/.zcompdump"
@@ -43,6 +51,24 @@ if (( $+commands[uv] )) && [[ ! -s $zcompdir/_uv || $commands[uv] -nt $zcompdir/
   rm -f "$zcompdump"  # 新しい補完ファイルを compinit に認識させる
 fi
 
+# ------------------------------
+# プラグインマネージャー (Sheldon)
+# ------------------------------
+# zsh-completions の fpath を compinit より前に追加するため、ここで読み込む
+# (fzf-tab などは zsh-defer で遅延読み込みされるため、実際には compinit の後に読み込まれる)
+if (( $+commands[sheldon] )); then
+  sheldon_cache="${XDG_CACHE_HOME:-$HOME/.cache}/sheldon.zsh"
+  sheldon_toml="$HOME/.config/sheldon/plugins.toml"
+  # キャッシュがない、またはキャッシュが古い場合にキャッシュを作成
+  if [[ ! -r "$sheldon_cache" || "$sheldon_toml" -nt "$sheldon_cache" ]]; then
+    mkdir -p "${sheldon_cache:h}"
+    sheldon source > "$sheldon_cache"
+    rm -f "$zcompdump"  # プラグインの補完ファイルを compinit に認識させる
+  fi
+  source "$sheldon_cache"
+  unset sheldon_cache sheldon_toml
+fi
+
 # 通常はキャッシュを使って高速に初期化し、セキュリティチェックは1日1回だけ行う
 autoload -Uz compinit
 stale_zcompdump=($zcompdump(N.mh+24))
@@ -57,7 +83,7 @@ unset zcompdump zcompdir stale_zcompdump
 eval "$(dircolors -b)"
 zstyle ':completion:*' use-cache yes
 zstyle ':completion:*' cache-path "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
-zstyle ':completion:*' menu select
+zstyle ':completion:*' menu no  # 候補の選択は fzf-tab で行う
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 
@@ -92,21 +118,6 @@ function lt() {
 }
 
 # ------------------------------
-# プラグインマネージャー (Sheldon)
-# ------------------------------
-if (( $+commands[sheldon] )); then
-  sheldon_cache="${XDG_CACHE_HOME:-$HOME/.cache}/sheldon.zsh"
-  sheldon_toml="$HOME/.config/sheldon/plugins.toml"
-  # キャッシュがない、またはキャッシュが古い場合にキャッシュを作成
-  if [[ ! -r "$sheldon_cache" || "$sheldon_toml" -nt "$sheldon_cache" ]]; then
-    mkdir -p "${sheldon_cache:h}"
-    sheldon source > "$sheldon_cache"
-  fi
-  source "$sheldon_cache"
-  unset sheldon_cache sheldon_toml
-fi
-
-# ------------------------------
 # ツール初期化
 # ------------------------------
 # Starship
@@ -114,7 +125,8 @@ if (( $+commands[starship] )); then
   eval "$(starship init zsh)"
 fi
 
-# mise
-if (( $+commands[mise] )); then
-  eval "$(mise activate zsh)"
+# fzf (Ctrl-R: 履歴検索, Ctrl-T: ファイル検索, Alt-C: ディレクトリ移動)
+# Tab は後から遅延読み込みされる fzf-tab が上書きする
+if (( $+commands[fzf] )); then
+  eval "$(fzf --zsh)"
 fi

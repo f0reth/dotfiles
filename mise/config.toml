@@ -1,2 +1,14 @@
+[tools]
+bat = "latest"
+bun = "latest"
+eza = "latest"
+fzf = "latest"
+lazygit = "latest"
+neovim = "stable"
+ripgrep = "latest"
+sheldon = "latest"
+starship = "latest"
+uv = "latest"
+
 [settings.hook_env]
 chpwd_only = true
