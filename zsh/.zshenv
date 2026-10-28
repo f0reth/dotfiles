@@ -1,27 +1,22 @@
-# ========================================
-# Zsh Environment Variables
-# ========================================
 # このファイルは全てのzshセッションで最初に読み込まれます
-
-# XDG Base Directory
-# export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-# export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
-# export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-# export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
 # デフォルトエディタ
 export EDITOR='nvim'
 export VISUAL='nvim'
 
-# 言語設定
-# export LANG=ja_JP.UTF-8
-# export LC_ALL=ja_JP.UTF-8
+# Ubuntu の /etc/zsh/zshrc で compinit を実行しない（.zshrc で高速版を実行）
+skip_global_compinit=1
 
 # PATH設定
-# typeset -U path  # 重複を自動削除
-# path=(
-#     $HOME/.local/bin(N-/)
-#     # $HOME/.cargo/bin(N-/)
-#     $HOME/.bun/bin(N-/)
-#     $path
-# )
+# (N-/) : 存在するディレクトリのみ追加
+# WSL が追加する Windows 側のPATH (/mnt/c/...) はコマンド検索が遅くなるため除外し、VS Code だけ残す
+typeset -U path  # 重複を自動削除
+path=(
+    $HOME/.local/bin(N-/)
+    $HOME/.bun/bin(N-/)
+    ${path:#/mnt/c/*}
+    /usr/local/go/bin(N-/)
+    $HOME/go/bin(N-/)
+    "/mnt/c/Users/$USER/AppData/Local/Programs/Microsoft VS Code/bin"(N-/)
+)
+export PATH

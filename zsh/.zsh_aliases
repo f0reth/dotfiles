@@ -1,8 +1,11 @@
+# eza
 alias ls='eza --icons'
 alias ll='eza -l --icons'
-alias la='eza -la --icons'
+alias la='eza -a --icons'
 
+# bat (Ubuntu では batcat という名前でインストールされる)
 alias bat='batcat --paging=never'
 
+# Neovim
 alias vim='nvim'
 alias vi='nvim'
