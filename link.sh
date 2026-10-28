@@ -71,6 +71,9 @@ create_symlink "$DOTFILES_DIR/starship/starship.toml" "$HOME/.config/starship.to
 # Sheldon
 create_symlink "$DOTFILES_DIR/sheldon/plugins.toml" "$HOME/.config/sheldon/plugins.toml"
 
+# mise
+create_symlink "$DOTFILES_DIR/mise/config.toml" "$HOME/.config/mise/config.toml"
+
 log_info "シンボリックリンクの作成が完了しました！"
 log_info "元のファイルは $BACKUP_DIR にバックアップされています。"
 
