@@ -9,7 +9,7 @@ skip_global_compinit=1
 
 # PATH設定
 # (N-/) : 存在するディレクトリのみ追加
-# WSL が追加する Windows 側のPATH (/mnt/c/...) はコマンド検索が遅くなるため除外し、VS Code だけ残す
+# WSL が追加する Windows 側のPATH (/mnt/c/...) はコマンド検索が遅くなるため除外し、VS Code と Zed だけ残す
 typeset -U path  # 重複を自動削除
 path=(
     # mise のツールを非対話シェル (スクリプトやエディタからの起動) でも使えるようにする
@@ -21,5 +21,6 @@ path=(
     /usr/local/go/bin(N-/)
     $HOME/go/bin(N-/)
     "/mnt/c/Users/$USER/AppData/Local/Programs/Microsoft VS Code/bin"(N-/)
+    "/mnt/c/Users/$USER/AppData/Local/Programs/Zed/bin"(N-/)
 )
 export PATH
