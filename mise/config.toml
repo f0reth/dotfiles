@@ -1,15 +1,23 @@
 [tools]
+"7zip" = "latest"
 bat = "latest"
 bun = "latest"
 eza = "latest"
+fd = "latest"
+ffmpeg = "latest"
 fzf = "latest"
+imagemagick = "latest"
+jq = "latest"
 lazygit = "latest"
 neovim = "stable"
 node = "lts"
+poppler = "latest"
 ripgrep = "latest"
 sheldon = "latest"
 starship = "latest"
 uv = "latest"
+yazi = "latest"
+zoxide = "latest"
 
 [settings.hook_env]
 chpwd_only = true

@@ -1,0 +1,4 @@
+# ya pkg でインストールしたプラグインは除外し、自作プラグインのみ管理する
+yazi/plugins/*
+!yazi/plugins/shell-wait.yazi/
+yazi/flavors/

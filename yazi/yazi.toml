@@ -1,0 +1,34 @@
+#:schema https://yazi-rs.github.io/schemas/yazi.json
+
+[mgr]
+ratio = [1, 4, 3]
+sort_by = "natural"           # file2 < file10 の順に並べる
+sort_sensitive = false
+sort_dir_first = true
+show_hidden = true
+show_symlink = true
+linemode = "size_and_mtime"   # init.lua で定義したサイズ + 更新日時を表示
+scrolloff = 8
+
+[preview]
+wrap = "no"
+tab_size = 2
+max_width = 1200
+max_height = 1800
+image_quality = 85
+
+[tasks]
+# 大きい画像のプレビューでメモリを使いすぎないよう制限 (256MB)
+image_alloc = 268435456
+
+[plugin]
+# git.yazi: ファイル一覧に Git の変更状態を表示する
+prepend_fetchers = [
+	{ group = "git", url = "*", run = "git" },
+	{ group = "git", url = "*/", run = "git" },
+]
+
+# piper.yazi: 組み込みのハイライトが対応していないファイルは bat でプレビューする
+prepend_previewers = [
+	{ url = "**/go.{mod,sum}", run = 'piper -- bat --plain --color=always "$1"' },
+]
