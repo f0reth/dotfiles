@@ -2,13 +2,14 @@
 #
 # Linux (Ubuntu / WSL) 開発環境セットアップスクリプト (apt + mise)
 #
-# 1. apt でシステムパッケージ (zsh, ビルドツールなど) をインストール
+# 1. apt でシステムパッケージ (zsh, bash-completion, ビルドツールなど) をインストール
 # 2. デフォルトシェルを zsh に変更
 # 3. mise が無ければインストール
 # 4. 設定をシンボリックリンクで適用 (既存のものは <パス>.bak_日時 に退避)
 # 5. mise install でツールを、ya pkg install で Yazi のプラグインをインストール
-# 6. win32yank を配置 (WSL のみ)
-# 7. Docker をインストール
+# 6. bash 用の ble.sh をインストール
+# 7. win32yank を配置 (WSL のみ)
+# 8. Docker をインストール
 #
 # 何度実行しても同じ結果になるようにしている (リンク済み・インストール済みのものは省略)
 #
@@ -23,7 +24,7 @@ for arg in "$@"; do
     case "$arg" in
         --skip-apt) SKIP_APT=true ;;
         -h | --help)
-            sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '3,18p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *)
@@ -69,8 +70,9 @@ install_apt_packages() {
     sudo apt-get upgrade -y
 
     # build-essential: Neovim の Treesitter パーサーのビルドに gcc が必要
+    # bash-completion: bash の補完定義 / xz-utils: ble.sh の展開に必要
     log_info "基本的な依存関係をインストール中..."
-    sudo apt-get install -y zsh curl wget git unzip gpg ca-certificates build-essential
+    sudo apt-get install -y zsh bash-completion curl wget git unzip xz-utils gpg ca-certificates build-essential
 }
 
 # ------------------------------
@@ -156,6 +158,11 @@ link_dotfiles() {
     create_symlink "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
     create_symlink "$DOTFILES_DIR/zsh/.zsh_aliases" "$HOME/.zsh_aliases"
 
+    # bash (エイリアスは zsh と共通)
+    create_symlink "$DOTFILES_DIR/bash/.bashrc" "$HOME/.bashrc"
+    create_symlink "$DOTFILES_DIR/bash/.bash_profile" "$HOME/.bash_profile"
+    create_symlink "$DOTFILES_DIR/zsh/.zsh_aliases" "$HOME/.bash_aliases"
+
     # Starship
     create_symlink "$DOTFILES_DIR/starship/starship.toml" "$HOME/.config/starship.toml"
 
@@ -182,6 +189,25 @@ install_yazi_plugins() {
     fi
     log_info "ya pkg install を実行します..."
     "$MISE" exec -- ya pkg install
+}
+
+# ------------------------------
+# ble.sh (bash の補完・サジェスト・シンタックスハイライト)
+# ------------------------------
+# インストール後の更新は bash 上で ble-update を実行する
+install_blesh() {
+    local dest="$HOME/.local/share/blesh/ble.sh"
+    if [ -f "$dest" ]; then
+        log_success "ble.sh はインストール済みです (更新は bash で ble-update)"
+        return
+    fi
+    log_info "ble.sh をインストール中..."
+    local tmp
+    tmp="$(mktemp -d)"
+    curl -fsSL https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf - -C "$tmp"
+    bash "$tmp/ble-nightly/ble.sh" --install "$HOME/.local/share"
+    rm -rf "$tmp"
+    log_success "ble.sh をインストールしました"
 }
 
 # ------------------------------
@@ -283,6 +309,7 @@ install_mise
 link_dotfiles
 install_mise_tools
 install_yazi_plugins
+install_blesh
 install_win32yank
 if [ "$SKIP_APT" = false ]; then
     install_docker
