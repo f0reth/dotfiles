@@ -15,6 +15,7 @@ yazi/
 ```
 
 `install.sh` で `~/.config/yazi` がこのディレクトリへのシンボリックリンクになります。
+Windows では `Windows/installer.ps1` で `%APPDATA%\yazi\config` がこのディレクトリへのジャンクションになります。
 
 ## インストール
 
@@ -43,6 +44,21 @@ ya pkg install   # package.toml に記載されたプラグインをインスト
 | `magick` (ImageMagick) | HEIC・AVIF などの画像のプレビュー |
 | `resvg` | SVG のプレビュー |
 
+### Windows の場合
+
+`Windows/installer.ps1` を実行すると、上記のコマンド (Scoop)・設定のリンク・`ya pkg install` までまとめて行います。
+
+- ファイル種別の判定には Git for Windows の `file.exe` を使います (公式推奨)。
+  PowerShell プロファイルで `YAZI_FILE_ONE` に設定しています。
+- piper プラグインは `sh` でコマンドを実行するため、プロファイルで Git の `bin` (bash / sh / git のみ) を PATH の末尾に追加しています。
+- Windows の Yazi は `shell` を `cmd.exe` で実行するため、`!` と `g r` は `keymap.toml` で `for = "windows"` 用を別に定義しています。
+  `c m` (chmod) は Windows では使えません。
+- テキストを開くエディタは、Windows のデフォルト (VS Code) から nvim に変更しています (`yazi.toml` の `[opener]`)。
+  `O` で VS Code も選べます。
+- `YAZI_FILE_ONE` が設定されていないとファイル種別を判定できず、テキストファイルも Windows の関連付けで開かれます。
+  Enter で編集できない場合は、`ya env` の `Variables` に `YAZI_FILE_ONE` が表示されているか確認してください。
+- 画像プレビューは Windows Terminal 1.22 以降 (Sixel) で表示されます。
+
 ## 起動
 
 ```bash
@@ -50,7 +66,7 @@ y          # カレントディレクトリで起動
 y ~/dotfiles
 ```
 
-`y` は `zsh/.zshrc` で定義しているラッパー関数です。`q` で終了すると、最後に開いていたディレクトリにシェルも移動します。
+`y` は `zsh/.zshrc` (Windows は `Windows/Microsoft.PowerShell_profile.ps1`) で定義しているラッパー関数です。`q` で終了すると、最後に開いていたディレクトリにシェルも移動します。
 移動せずに終了したい場合は `Q` を使います。
 
 ## 基本操作

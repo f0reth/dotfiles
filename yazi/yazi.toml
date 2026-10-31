@@ -17,6 +17,16 @@ max_width = 1200
 max_height = 1800
 image_quality = 85
 
+[opener]
+# テキストを開くエディタ (Enter / o)
+# Windows のデフォルトは VS Code のため、Linux と同じく nvim をターミナル内で開くようにする
+# (Windows の shell は cmd.exe で、%EDITOR% は Yazi の %s 系の置換と紛らわしいため nvim を直接指定)
+edit = [
+	{ run = "${EDITOR:-vi} %s", desc = "$EDITOR", for = "unix", block = true },
+	{ run = "nvim %s", desc = "nvim", for = "windows", block = true },
+	{ run = "code %s", desc = "code", for = "windows", orphan = true },
+]
+
 [tasks]
 # 大きい画像のプレビューでメモリを使いすぎないよう制限 (256MB)
 image_alloc = 268435456
