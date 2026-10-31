@@ -40,11 +40,22 @@ chsh -s "$(which zsh)"
 log_info "mise をインストール中..."
 curl https://mise.run | sh
 
-# mise で管理するツール (Neovim, Starship, Sheldon, eza, ripgrep, bat, lazygit, uv, bun) のインストール
+# mise で管理するツール (Neovim, tree-sitter, Starship, Sheldon, eza, ripgrep, bat, lazygit, uv, bun など) のインストール
 # link.sh の実行前でも動くよう、dotfiles 内の設定ファイルを直接参照する
 log_info "mise でツールをインストール中..."
 export MISE_GLOBAL_CONFIG_FILE="$DOTFILES_DIR/mise/config.toml"
 ~/.local/bin/mise install
+
+# win32yank のインストール (WSL のみ)
+# .zshenv で Windows 側の PATH を除外しているため、Neovim がクリップボード連携に使えるよう ~/.local/bin に配置する
+if grep -qi microsoft /proc/version; then
+    log_info "win32yank をインストール中..."
+    WIN32YANK_TMP="$(mktemp -d)"
+    curl -fsSL -o "$WIN32YANK_TMP/win32yank.zip" https://github.com/equalsraf/win32yank/releases/download/v0.1.1/win32yank-x64.zip
+    unzip -o -q "$WIN32YANK_TMP/win32yank.zip" win32yank.exe -d "$WIN32YANK_TMP"
+    install -m 0755 "$WIN32YANK_TMP/win32yank.exe" ~/.local/bin/win32yank.exe
+    rm -rf "$WIN32YANK_TMP"
+fi
 
 # Docker のインストール
 log_info "Docker をインストール中..."
