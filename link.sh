@@ -77,6 +77,9 @@ create_symlink "$DOTFILES_DIR/mise/config.toml" "$HOME/.config/mise/config.toml"
 # Yazi
 create_symlink "$DOTFILES_DIR/yazi" "$HOME/.config/yazi"
 
+# Neovim (LazyVim)
+create_symlink "$DOTFILES_DIR/nvim" "$HOME/.config/nvim"
+
 log_info "シンボリックリンクの作成が完了しました！"
 log_info "元のファイルは $BACKUP_DIR にバックアップされています。"
 
