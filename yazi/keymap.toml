@@ -2,6 +2,10 @@
 
 [mgr]
 prepend_keymap = [
+	# smart-enter: Enter でディレクトリなら中に入り、ファイルなら開く
+	# (デフォルトはディレクトリも edit で開くため、エディタが起動してしまう)
+	{ on = "<Enter>",    run = "plugin smart-enter", desc = "Enter the child directory, or open the file" },
+
 	# smart-filter: 絞り込み結果が1件になったら自動で入る / 開く
 	{ on = "F",          run = "plugin smart-filter", desc = "Smart filter" },
 

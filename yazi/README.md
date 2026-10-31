@@ -74,7 +74,8 @@ y ~/dotfiles
 
 | キー | 操作 |
 |---|---|
-| `o` / `Enter` | 開く |
+| `o` | 開く (ディレクトリもエディタで開く) |
+| `Enter` | ディレクトリなら中に入る / ファイルなら開く (smart-enter) |
 | `O` | アプリを選んで開く |
 | `Space` | 選択 / 選択解除 |
 | `v` | ビジュアルモード (範囲選択) |
@@ -118,6 +119,7 @@ y ~/dotfiles
 
 | キー | 操作 | 使用プラグイン |
 |---|---|---|
+| `Enter` | ディレクトリなら中に入る / ファイルなら開く | smart-enter |
 | `F` | 絞り込み (1件になったら自動で入る / 開く) | smart-filter |
 | `T` | プレビューを最大化 / 元に戻す | toggle-pane |
 | `t p` | 親ディレクトリのペインを表示 / 非表示 | toggle-pane |
@@ -135,6 +137,7 @@ y ~/dotfiles
 |---|---|---|
 | [git](https://github.com/yazi-rs/plugins/tree/main/git.yazi) | 一覧に Git の変更状態を表示 | `yazi.toml`, `init.lua` |
 | [full-border](https://github.com/yazi-rs/plugins/tree/main/full-border.yazi) | 各ペインを罫線で囲む | `init.lua` |
+| [smart-enter](https://github.com/yazi-rs/plugins/tree/main/smart-enter.yazi) | ディレクトリなら中に入り、ファイルなら開く | `keymap.toml`, `init.lua` |
 | [smart-filter](https://github.com/yazi-rs/plugins/tree/main/smart-filter.yazi) | 絞り込み結果が1件なら自動で入る / 開く | `keymap.toml` |
 | [toggle-pane](https://github.com/yazi-rs/plugins/tree/main/toggle-pane.yazi) | ペインの最大化・非表示 | `keymap.toml` |
 | [chmod](https://github.com/yazi-rs/plugins/tree/main/chmod.yazi) | 権限の変更 | `keymap.toml` |
@@ -145,7 +148,7 @@ y ~/dotfiles
 初回は以下でまとめてインストールします (`package.toml` が作成されます)。
 
 ```bash
-ya pkg add yazi-rs/plugins:git yazi-rs/plugins:full-border yazi-rs/plugins:smart-filter yazi-rs/plugins:toggle-pane yazi-rs/plugins:chmod yazi-rs/plugins:piper Rolv-Apneseth/starship
+ya pkg add yazi-rs/plugins:git yazi-rs/plugins:full-border yazi-rs/plugins:smart-enter yazi-rs/plugins:smart-filter yazi-rs/plugins:toggle-pane yazi-rs/plugins:chmod yazi-rs/plugins:piper Rolv-Apneseth/starship
 ```
 
 ### プラグインの追加方法

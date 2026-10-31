@@ -9,6 +9,9 @@ local function setup(name, ...)
 	end
 end
 
+-- Enter でファイルを開くとき、選択中の複数ファイルをまとめて開く (デフォルトの Enter と同じ動作)
+setup("smart-enter", { open_multi = true })
+
 -- 各ペインを罫線で囲む
 setup("full-border")
 
