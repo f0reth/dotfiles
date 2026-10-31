@@ -41,6 +41,7 @@ ya pkg install   # package.toml に記載されたプラグインをインスト
 | `ffmpeg` | 動画のサムネイル |
 | `pdftoppm` (poppler-utils) | PDF のプレビュー |
 | `magick` (ImageMagick) | HEIC・AVIF などの画像のプレビュー |
+| `resvg` | SVG のプレビュー |
 
 ## 起動
 

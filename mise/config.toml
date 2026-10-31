@@ -1,24 +1,34 @@
 [tools]
-"7zip" = "latest"
-bat = "latest"
+# ---------------------------------------------------------------
+# 言語ランタイム: 全OSでmiseが管理
+# ---------------------------------------------------------------
 bun = "latest"
-eza = "latest"
-fd = "latest"
-ffmpeg = "latest"
-fzf = "latest"
-imagemagick = "latest"
-jq = "latest"
-lazygit = "latest"
-neovim = "stable"
 node = "lts"
-poppler = "latest"
-ripgrep = "latest"
-sheldon = "latest"
-starship = "latest"
-tree-sitter = "latest"
 uv = "latest"
-yazi = "latest"
-zoxide = "latest"
+
+# ---------------------------------------------------------------
+# CLIツール: Linux/macOSはmise、WindowsはScoop (Windows/scoopfile.json) が管理
+# ---------------------------------------------------------------
+"7zip" = { version = "latest", os = ["linux", "macos"] }
+bat = { version = "latest", os = ["linux", "macos"] }
+eza = { version = "latest", os = ["linux", "macos"] }
+fd = { version = "latest", os = ["linux", "macos"] }
+ffmpeg = { version = "latest", os = ["linux", "macos"] }
+fzf = { version = "latest", os = ["linux", "macos"] }
+imagemagick = { version = "latest", os = ["linux", "macos"] }
+jq = { version = "latest", os = ["linux", "macos"] }
+lazygit = { version = "latest", os = ["linux", "macos"] }
+neovim = { version = "stable", os = ["linux", "macos"] }
+poppler = { version = "latest", os = ["linux", "macos"] }
+resvg = { version = "latest", os = ["linux", "macos"] }  # yazi の SVG プレビュー
+ripgrep = { version = "latest", os = ["linux", "macos"] }
+starship = { version = "latest", os = ["linux", "macos"] }
+tree-sitter = { version = "latest", os = ["linux", "macos"] }
+yazi = { version = "latest", os = ["linux", "macos"] }
+zoxide = { version = "latest", os = ["linux", "macos"] }
+
+# zsh専用 (Windowsでは不要)
+sheldon = { version = "latest", os = ["linux", "macos"] }
 
 [settings.hook_env]
 chpwd_only = true

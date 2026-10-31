@@ -2,3 +2,7 @@
 yazi/plugins/*
 !yazi/plugins/shell-wait.yazi/
 yazi/flavors/
+
+# mpv が MPV_HOME (dotfiles/mpv) に作るキャッシュ・再生位置
+mpv/cache/
+mpv/watch_later/

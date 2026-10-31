@@ -1,101 +1,101 @@
-# =================================
-# 環境変数設定
-# =================================
-$env:EDITOR = "nvim"
-$env:VISUAL = "nvim"
-$env:YAZI_FILE_ONE = "C:\Program Files\Git\usr\bin\file.exe"
-$env:EZA_CONFIG_DIR = "C:\Users\daich\OneDrive\ドキュメント\PowerShell\config\eza"
+# ------------------------------
+# 環境変数
+# ------------------------------
+$env:EDITOR = 'nvim'
+$env:VISUAL = 'nvim'
 
-# =================================
-# 関数設定
-# =================================
-# ディレクトリ操作
-function ls {
-    eza --icons @args
-}
+# Starship の設定 (このファイルの場所から dotfiles の starship.toml を指す)
+$env:STARSHIP_CONFIG = Join-Path (Split-Path -Parent $PSScriptRoot) 'starship\starship.toml'
 
-function ll {
-    eza -aahl --git --icons @args
-}
+# Git for Windows (winget 版 / Scoop 版のどちらか)
+$gitRoot = @(
+    "$env:ProgramFiles\Git"
+    "$HOME\scoop\apps\git\current"
+) | Where-Object { Test-Path "$_\usr\bin\file.exe" } | Select-Object -First 1
 
-function la {
-    eza -aa --icons @args
-}
-
-# 引数で階層レベル指定可能
-function lt {
-    param(
-        [int]$level = 3,   # デフォルトは3階層
-        [Parameter(ValueFromRemainingArguments = $true)]
-        $args
-    )
-    eza --tree --level=$level @args
-}
-
-# ファイル操作
-function cp { Copy-Item @args }
-function mv { Move-Item @args }
-function rm { Remove-Item @args }
-function mkdir { New-Item -ItemType Directory @args }
-function head { param([int]$n = 10) Get-Content @args | Select-Object -First $n }
-function tail { param([int]$n = 10) Get-Content @args | Select-Object -Last $n }
-#function touch { New-Item -ItemType File @args }
-function touch {
-    param([string[]]$Files)
-    foreach ($file in $Files) {
-        if (Test-Path $file) {
-            (Get-Item $file).LastWriteTime = Get-Date
-        }
-        else {
-            New-Item -ItemType File -Path $file -Force | Out-Null
-        }
+if ($gitRoot) {
+    # Yazi がファイル種別の判定に使う file.exe
+    $env:YAZI_FILE_ONE = "$gitRoot\usr\bin\file.exe"
+    # Yazi の piper プラグインが sh を使うため、Git の bin (bash / sh / git のみ) を末尾に追加する
+    if ($env:PATH -notlike "*$gitRoot\bin*") {
+        $env:PATH += ";$gitRoot\bin"
     }
 }
+Remove-Variable gitRoot
 
-# which コマンド
-function which {
-    param([string]$Command)
-    Get-Command $Command -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+# ------------------------------
+# mise
+# ------------------------------
+# mise で入れたツール (node, bun, uv など) を以降で使うため最初に読み込む
+if (Get-Command mise -ErrorAction SilentlyContinue) {
+    (& mise activate pwsh) | Out-String | Invoke-Expression
 }
 
-# pwd は既にPowerShellに存在するが、より詳細な版
-function pwd { Get-Location }
+# ------------------------------
+# エイリアス
+# ------------------------------
+# 組み込みエイリアスは関数より優先されるため、先に削除する
+Remove-Item Alias:ls -Force -ErrorAction SilentlyContinue
 
-# =================================
-# エイリアス設定
-# =================================
-Set-Alias -Name vi -Value nvim
+# eza
+function ls { eza --icons=auto @args }
+function ll { eza -l --icons=auto @args }
+function la { eza -a --icons=auto @args }
+
+# Neovim
 Set-Alias -Name vim -Value nvim
+Set-Alias -Name vi -Value nvim
+
+# ripgrep
 Set-Alias -Name grep -Value rg
-Set-Alias -Name ls -Value eza
 
-# =================================
-# プロンプト読み込み
-# Yazi wrapper script loader
-# =================================
-try {
-    # スクリプトファイルのパスを設定（必要に応じて変更してください）
-    $yaziScriptPath = Join-Path $PSScriptRoot "Scripts/yazi-wrapper.ps1"
-
-    # ファイルの存在確認
-    if (Test-Path $yaziScriptPath) {
-        # スクリプトを読み込み
-        . $yaziScriptPath
-        Write-Host "✓ Yazi wrapper loaded successfully" -ForegroundColor Green
+# ------------------------------
+# 関数
+# ------------------------------
+# eza でツリー表示（第1引数が数字なら階層の深さとして扱う）
+function lt {
+    if ($args.Count -gt 0 -and "$($args[0])" -match '^\d+$') {
+        eza --tree --level $args[0] @($args | Select-Object -Skip 1)
     }
     else {
-        Write-Warning "Yazi wrapper script not found at: $yaziScriptPath"
-        Write-Host "Please ensure 'yazi-wrapper.ps1' is in the same directory as your profile." -ForegroundColor Yellow
+        eza --tree @args
     }
 }
-catch {
-    Write-Error "Failed to load Yazi wrapper: $($_.Exception.Message)"
-    Write-Host "You can still use PowerShell, but 'y' command will not be available." -ForegroundColor Yellow
+
+# Yazi (終了時のディレクトリに移動する。y で起動)
+function y {
+    $tmp = (New-TemporaryFile).FullName
+    yazi @args --cwd-file="$tmp"
+    $cwd = Get-Content -LiteralPath $tmp -Encoding UTF8
+    if ($cwd -and $cwd -ne $PWD.Path) {
+        Set-Location -LiteralPath (Resolve-Path -LiteralPath $cwd).Path
+    }
+    Remove-Item -LiteralPath $tmp
 }
 
-# =================================
-# StarShip読み込み
-# =================================
-Invoke-Expression (&starship init powershell)
+# Unix 風コマンド
+# ファイル名が -n に割り当てられないよう、Path を先に宣言する
+function touch {
+    param([Parameter(Mandatory, ValueFromRemainingArguments)][string[]]$Path)
+    foreach ($p in $Path) {
+        if (Test-Path -LiteralPath $p) {
+            (Get-Item -LiteralPath $p).LastWriteTime = Get-Date
+        }
+        else {
+            New-Item -ItemType File -Path $p | Out-Null
+        }
+    }
+}
 
+function which {
+    param([Parameter(Mandatory)][string]$Name)
+    Get-Command $Name -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+}
 
+# ------------------------------
+# ツール初期化
+# ------------------------------
+# Starship
+if (Get-Command starship -ErrorAction SilentlyContinue) {
+    Invoke-Expression (& starship init powershell)
+}

@@ -2,316 +2,309 @@
 
 <#
 .SYNOPSIS
-    Windows開発ツール自動インストールスクリプト (winget版)
+    Windows 開発環境セットアップスクリプト (winget + Scoop + mise)
 .DESCRIPTION
-    wingetを使用してYazi, Neovim, Ripgrep (MSVC), Ezaを自動的にインストールします
+    1. winget.json のアプリをインストールし、インストール済みのものは最新版にアップグレード
+       (Version を指定したものはそのバージョンに固定)
+    2. Scoop が無ければインストール
+    3. scoopfile.json のバケット/アプリを scoop import でインストール
+    4. 設定を適用する
+       - mise / Yazi / Neovim: 設定ディレクトリをジャンクションでリンク
+       - mpv: ユーザー環境変数 MPV_HOME を設定
+       - PowerShell: プロファイルから dotfiles のプロファイルを読み込む
+         (Starship の設定は dotfiles のプロファイルで STARSHIP_CONFIG を設定)
+    5. mise install で言語ランタイムを、ya pkg install で Yazi のプラグインをインストール
+.PARAMETER SkipWinget
+    winget でのインストールを省略する (アプリが揃っていて時間を短縮したいとき)
 .NOTES
-    Windows 10 version 1909以降またはWindows 11が必要です
+    GUIアプリは winget、CLIツールは Scoop、言語ランタイムは mise で管理します。
+    ジャンクションを使うため、開発者モードや管理者権限は不要です。
 #>
 
 param(
-    [switch]$Force,
-    [switch]$Verbose,
-    [switch]$AcceptAll
+    [switch]$SkipWinget
 )
 
-# ログ関数
+$ErrorActionPreference = 'Stop'
+
+$DotfilesDir = Split-Path -Parent $PSScriptRoot
+$WingetFile = Join-Path $PSScriptRoot 'winget.json'
+$ScoopFile = Join-Path $PSScriptRoot 'scoopfile.json'
+$MiseConfigSource = Join-Path $DotfilesDir 'mise'
+$MiseConfigTarget = Join-Path $HOME '.config\mise'
+# Windows 版 Yazi の設定ディレクトリは %APPDATA%\yazi\config
+$YaziConfigSource = Join-Path $DotfilesDir 'yazi'
+$YaziConfigTarget = Join-Path $env:APPDATA 'yazi\config'
+# Windows 版 Neovim の設定ディレクトリは %LOCALAPPDATA%\nvim
+$NvimConfigSource = Join-Path $DotfilesDir 'nvim'
+$NvimConfigTarget = Join-Path $env:LOCALAPPDATA 'nvim'
+# Scoop 版 mpv は本体横の portable_config を読むため、MPV_HOME で dotfiles を優先させる
+# (エクスプローラーから起動しても効くよう、プロファイルではなくユーザー環境変数に設定する)
+$MpvConfigSource = Join-Path $DotfilesDir 'mpv'
+$ProfileSource = Join-Path $PSScriptRoot 'Microsoft.PowerShell_profile.ps1'
+# Windows PowerShell 5.1 から実行しても PowerShell 7 のプロファイルを対象にする
+$ProfileTarget = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PowerShell\Microsoft.PowerShell_profile.ps1'
+
 function Write-Log {
-    param([string]$Message, [string]$Level = "INFO")
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    param([string]$Message, [string]$Level = 'INFO')
     $color = switch ($Level) {
-        "ERROR" { "Red" }
-        "WARN"  { "Yellow" }
-        "SUCCESS" { "Green" }
-        "INFO" { "Cyan" }
-        default { "White" }
+        'ERROR'   { 'Red' }
+        'WARN'    { 'Yellow' }
+        'SUCCESS' { 'Green' }
+        default   { 'Cyan' }
     }
-    Write-Host "[$timestamp] [$Level] $Message" -ForegroundColor $color
+    Write-Host "[$Level] $Message" -ForegroundColor $color
 }
 
-# wingetの利用可能性チェック
-function Test-Winget {
-    try {
-        $wingetVersion = & winget --version 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Log "winget version: $wingetVersion" "SUCCESS"
-            return $true
-        }
-    }
-    catch {
-        Write-Log "winget command not found" "ERROR"
-    }
-    return $false
+function Test-Command {
+    param([string]$Name)
+    [bool](Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
-# wingetのインストール
-function Install-Winget {
-    Write-Log "winget is not available. Attempting to install..." "WARN"
-    
-    try {
-        # App Installer (winget) のダウンロードとインストール
-        Write-Log "Downloading Microsoft App Installer..."
-        $appInstallerUrl = "https://aka.ms/getwinget"
-        $tempFile = Join-Path $env:TEMP "Microsoft.DesktopAppInstaller.msixbundle"
-        
-        Invoke-WebRequest -Uri $appInstallerUrl -OutFile $tempFile -UseBasicParsing
-        
-        Write-Log "Installing Microsoft App Installer..."
-        Add-AppxPackage -Path $tempFile
-        
-        # インストール後の確認
-        Start-Sleep -Seconds 5
-        if (Test-Winget) {
-            Write-Log "winget installed successfully" "SUCCESS"
-            Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-            return $true
-        } else {
-            throw "winget installation verification failed"
-        }
-    }
-    catch {
-        Write-Log "Failed to install winget: $($_.Exception.Message)" "ERROR"
-        Write-Log "Please install 'App Installer' from Microsoft Store manually" "ERROR"
-        return $false
-    }
+function Update-SessionPath {
+    $env:PATH = @(
+        [Environment]::GetEnvironmentVariable('PATH', 'User')
+        [Environment]::GetEnvironmentVariable('PATH', 'Machine')
+    ) -join ';'
 }
 
-# ツールのインストール状況確認
-function Test-Tool {
-    param([string]$Command)
-    
-    try {
-        $null = Get-Command $Command -ErrorAction Stop
-        return $true
-    }
-    catch {
-        return $false
-    }
-}
+# winget の終了コード
+$WingetUpdateNotApplicable = -1978335189  # 0x8A15002B: 利用可能なアップグレードが無い
+$WingetNoInstalledPackage = -1978335212   # 0x8A150014: インストールされていない
 
-# wingetでツールをインストール
-function Install-WithWinget {
-    param(
-        [string]$PackageId,
-        [string]$PackageName,
-        [string]$Command
-    )
-    
-    # 既にインストール済みかチェック
-    if ((Test-Tool $Command) -and -not $Force) {
-        Write-Log "$PackageName is already installed (use -Force to reinstall)" "SUCCESS"
-        return $true
-    }
-    
-    try {
-        Write-Log "Installing $PackageName ($PackageId)..."
-        
-        # wingetコマンドの構築
-        $arguments = @("install", "--id=$PackageId")
-        
-        if ($AcceptAll) {
-            $arguments += "--accept-package-agreements"
-            $arguments += "--accept-source-agreements"
-        }
-        
-        if ($Force) {
-            $arguments += "--force"
-        }
-        
-        # サイレントインストール（可能な場合）
-        $arguments += "--silent"
-        
-        if ($Verbose) {
-            Write-Log "Running: winget $($arguments -join ' ')" "INFO"
-        }
-        
-        # wingetの実行
-        $process = Start-Process "winget" -ArgumentList $arguments -Wait -PassThru -NoNewWindow
-        
-        if ($process.ExitCode -eq 0) {
-            Write-Log "$PackageName installed successfully" "SUCCESS"
-            return $true
-        } elseif ($process.ExitCode -eq -1978335189) {
-            # パッケージが既にインストールされている場合
-            Write-Log "$PackageName is already installed" "SUCCESS"
-            return $true
-        } else {
-            throw "winget installation failed with exit code $($process.ExitCode)"
-        }
-    }
-    catch {
-        Write-Log "Failed to install $PackageName: $($_.Exception.Message)" "ERROR"
-        return $false
-    }
-}
-
-# パッケージの検索と確認
-function Search-WingetPackage {
-    param([string]$PackageId)
-    
-    try {
-        $result = & winget search --id $PackageId --exact 2>$null
-        return ($LASTEXITCODE -eq 0)
-    }
-    catch {
-        return $false
-    }
-}
-
-# パスの更新
-function Update-Path {
-    $env:PATH = [Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [Environment]::GetEnvironmentVariable("PATH", "User")
-    Write-Log "Environment PATH updated" "INFO"
-}
-
-# メイン処理
-function Main {
-    Write-Log "=== Windows Development Tools Installer (winget) ===" "SUCCESS"
-    Write-Log "Installing: Yazi, Neovim, Ripgrep (MSVC), Eza"
-    
-    # wingetの確認とインストール
-    if (-not (Test-Winget)) {
-        if (-not (Install-Winget)) {
-            Write-Log "Cannot proceed without winget. Exiting." "ERROR"
-            return $false
-        }
-    }
-    
-    # wingetソースの更新
-    Write-Log "Updating winget sources..."
-    try {
-        & winget source update 2>$null
-        Write-Log "winget sources updated" "SUCCESS"
-    }
-    catch {
-        Write-Log "Failed to update winget sources, continuing anyway..." "WARN"
-    }
-    
-    $success = $true
-    $installationResults = @{}
-    
-    # インストールするパッケージの定義
-    $packages = @(
-        @{
-            Id = "sxyazi.yazi"
-            Name = "Yazi"
-            Command = "yazi"
-            Description = "Modern file manager"
-        },
-        @{
-            Id = "Neovim.Neovim"
-            Name = "Neovim"
-            Command = "nvim"
-            Description = "Hyperextensible Vim-based text editor"
-        },
-        @{
-            Id = "BurntSushi.ripgrep.MSVC"
-            Name = "Ripgrep (MSVC)"
-            Command = "rg"
-            Description = "Fast search tool"
-        },
-        @{
-            Id = "eza-community.eza"
-            Name = "Eza"
-            Command = "eza"
-            Description = "Modern replacement for ls"
-        },
-	@   Id = "sharkdp.bat"
-	    Name = "BAT"
-	    Command = "bat"
-	    Description = "catのすごい版"
-	}
-    )
-    
-    # 各パッケージのインストール
-    Write-Log "Starting package installations..." "INFO"
-    
-    foreach ($package in $packages) {
-        Write-Log "Processing $($package.Name) - $($package.Description)" "INFO"
-        
-        # パッケージの存在確認
-        if (-not (Search-WingetPackage $package.Id)) {
-            Write-Log "Package $($package.Id) not found in winget" "WARN"
-            $installationResults[$package.Name] = $false
-            continue
-        }
-        
-        # インストール実行
-        $installationResults[$package.Name] = Install-WithWinget $package.Id $package.Name $package.Command
-        
-        if (-not $installationResults[$package.Name]) {
-            $success = $false
-        }
-        
-        # インストール間隔
-        Start-Sleep -Seconds 2
-    }
-    
-    # パス更新
-    Update-Path
-    
-    # 結果の表示
-    Write-Log "=== Installation Results ===" "SUCCESS"
-    foreach ($package in $packages) {
-        $packageName = $package.Name
-        $status = if ($installationResults[$packageName]) { "SUCCESS" } else { "FAILED" }
-        $level = if ($installationResults[$packageName]) { "SUCCESS" } else { "ERROR" }
-        Write-Log "$packageName : $status" $level
-    }
-    
-    # 最終確認
-    Write-Log "=== Final Verification ===" "INFO"
-    Start-Sleep -Seconds 3  # パス更新の時間を待つ
-    
-    foreach ($package in $packages) {
-        $command = $package.Command
-        $name = $package.Name
-        
-        if (Test-Tool $command) {
-            try {
-                $version = & $command --version 2>$null | Select-Object -First 1
-                Write-Log "$name is ready: $version" "SUCCESS"
+# winget.json のパッケージを { Id, Version, Source } の一覧にする
+function Get-WingetPackages {
+    foreach ($source in (Get-Content -LiteralPath $WingetFile -Raw | ConvertFrom-Json).Sources) {
+        foreach ($pkg in $source.Packages) {
+            [pscustomobject]@{
+                Id      = $pkg.PackageIdentifier
+                Version = $pkg.Version
+                Source  = $source.SourceDetails.Name
             }
-            catch {
-                Write-Log "$name is available" "SUCCESS"
-            }
-        } else {
-            Write-Log "$name is not available in PATH. Try restarting your terminal." "WARN"
         }
     }
-    
-    if ($success) {
-        Write-Log "All tools installed successfully!" "SUCCESS"
-        Write-Log "Please restart your PowerShell session to ensure all tools are available in PATH." "SUCCESS"
-    } else {
-        Write-Log "Some installations failed. Check the logs above for details." "ERROR"
-        Write-Log "You can try running the script again or install failed packages manually." "INFO"
-    }
-    
-    # 使用方法のヒント
-    Write-Log "=== Quick Start Tips ===" "INFO"
-    Write-Log "• Yazi file manager: yazi" "INFO"
-    Write-Log "• Neovim editor: nvim filename" "INFO"
-    Write-Log "• Search files: rg 'pattern'" "INFO"
-    Write-Log "• List files: eza -la" "INFO"
-    
-    return $success
 }
 
-# スクリプト実行
-try {
-    # Windows バージョンチェック
-    $windowsVersion = [System.Environment]::OSVersion.Version
-    if ($windowsVersion.Major -lt 10 -or ($windowsVersion.Major -eq 10 -and $windowsVersion.Build -lt 17763)) {
-        Write-Log "This script requires Windows 10 version 1809 or later" "ERROR"
-        exit 1
+function Import-WingetApps {
+    if (-not (Test-Command 'winget')) {
+        throw 'winget が見つかりません。Microsoft Store から「アプリ インストーラー」をインストールしてください'
     }
-    
-    $result = Main
-    exit $(if ($result) { 0 } else { 1 })
+
+    # 1. 未インストールのものだけ入れる (Version 指定のものはそのバージョンで入る)
+    #    アップグレードは 3. で行い、Version 指定のものが上がらないようにする
+    Write-Log "winget import $WingetFile"
+    winget import --import-file $WingetFile --no-upgrade --ignore-unavailable `
+        --accept-package-agreements --accept-source-agreements
+    if ($LASTEXITCODE -ne 0) {
+        # 一部の失敗で後続 (Scoop / mise) を止めない
+        Write-Log "一部のパッケージのインストールに失敗しました (exit code: $LASTEXITCODE)。上のログを確認してください" 'WARN'
+    }
+
+    # 2. Version 指定のものをピン留め
+    Add-WingetPins
+
+    # 3. Version 指定の無いものを最新版にアップグレード
+    Update-WingetApps
+
+    # 4. PowerShell 7 は MSI 版で入れる / アップグレードする
+    Install-PowerShellMsi
+
+    Update-SessionPath
 }
-catch {
-    Write-Log "Script execution failed: $($_.Exception.Message)" "ERROR"
-    Write-Log "Stack trace: $($_.ScriptStackTrace)" "ERROR"
-    exit 1
+
+# winget.json で Version を指定したパッケージを、そのバージョンにピン留めする
+# (手動の winget upgrade --all でも上がらないようにする)
+function Add-WingetPins {
+    foreach ($pkg in Get-WingetPackages | Where-Object { $_.Version }) {
+        Write-Log "ピン留め: $($pkg.Id) $($pkg.Version)"
+        # --force: 既存のピンがあれば上書きする
+        winget pin add --id $pkg.Id --exact --source $pkg.Source --version $pkg.Version --force `
+            --accept-source-agreements
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "$($pkg.Id) のピン留めに失敗しました (exit code: $LASTEXITCODE)" 'WARN'
+        }
+    }
 }
+
+# winget.json のうち Version 指定の無いパッケージだけを最新版にする
+# (winget upgrade --all だと winget.json に無いランタイム等まで上がるため 1 つずつ実行する)
+# PowerShell 7 を MSI 版でインストール / アップグレードする
+# - winget の既定は MSIX 版で、パッケージ化されたアプリとして動くため
+#   ファイル・レジストリへの書き込みが仮想化されるなど、Claude Code などのツールが正常に動かない
+# - MSI 版は winget の --id 指定では「インストールされていない」と判定され winget upgrade が使えないため、
+#   pwsh.exe のバージョンと winget の最新版を比べ、古ければ MSI を上書きインストールする
+#   (MSI 版は上書きインストールでアップグレードされる)
+# - winget.json の一括インストールに含めると MSIX 版が入るため、winget.json には書かない
+function Install-PowerShellMsi {
+    $id = 'Microsoft.PowerShell'
+    $pwshExe = Join-Path $env:ProgramFiles 'PowerShell\7\pwsh.exe'
+
+    if (Get-AppxPackage -Name 'Microsoft.PowerShell' -ErrorAction SilentlyContinue) {
+        Write-Log 'MSIX 版の PowerShell が入っています。MSI 版と競合するため、削除を推奨します: Get-AppxPackage Microsoft.PowerShell | Remove-AppxPackage' 'WARN'
+    }
+
+    # winget の最新版 ("バージョン: 7.6.9.0" / "Version: 7.6.9.0" の行から取得)
+    $latest = winget show --id $id --exact --source winget --installer-type wix --accept-source-agreements |
+        Select-String -Pattern ':\s*(\d+\.\d+\.\d+)(\.\d+)?\s*$' |
+        Select-Object -First 1 |
+        ForEach-Object { [version]$_.Matches[0].Groups[1].Value }
+    if (-not $latest) {
+        Write-Log 'winget から PowerShell の最新バージョンを取得できませんでした' 'WARN'
+        return
+    }
+
+    if (Test-Path -LiteralPath $pwshExe) {
+        # ProductVersion は "7.6.9 SHA: ..." の形式
+        $installed = [version](((Get-Item -LiteralPath $pwshExe).VersionInfo.ProductVersion -split ' ')[0])
+        if ($installed -ge $latest) {
+            Write-Log "PowerShell $installed (MSI 版) は最新です"
+            return
+        }
+        Write-Log "PowerShell を $installed から $latest にアップグレードします (MSI 版)"
+    }
+    else {
+        Write-Log "PowerShell $latest をインストールします (MSI 版)"
+    }
+
+    winget install --id $id --exact --source winget --installer-type wix --scope machine `
+        --accept-package-agreements --accept-source-agreements | Out-Host
+    if ($LASTEXITCODE -eq 0) {
+        Write-Log "PowerShell $latest をインストールしました" 'SUCCESS'
+    }
+    else {
+        Write-Log "PowerShell のインストールに失敗しました (exit code: $LASTEXITCODE)。PowerShell 7 から実行している場合は、Windows PowerShell から再実行してください" 'WARN'
+    }
+}
+
+function Update-WingetApps {
+    foreach ($pkg in Get-WingetPackages | Where-Object { -not $_.Version }) {
+        Write-Log "アップグレード確認: $($pkg.Id)"
+        winget upgrade --id $pkg.Id --exact --source $pkg.Source `
+            --accept-package-agreements --accept-source-agreements | Out-Host
+        switch ($LASTEXITCODE) {
+            0 { Write-Log "$($pkg.Id) をアップグレードしました" 'SUCCESS' }
+            $WingetUpdateNotApplicable { Write-Log "$($pkg.Id) は最新です" }
+            $WingetNoInstalledPackage { Write-Log "$($pkg.Id) はインストールされていません (1. で失敗した可能性があります)" 'WARN' }
+            default { Write-Log "$($pkg.Id) のアップグレードに失敗しました (exit code: $LASTEXITCODE)" 'WARN' }
+        }
+    }
+}
+
+function Install-Scoop {
+    if (Test-Command 'scoop') {
+        Write-Log 'Scoop はインストール済みです' 'SUCCESS'
+        return
+    }
+    Write-Log 'Scoop をインストールします...'
+    Invoke-RestMethod -Uri 'https://get.scoop.sh' | Invoke-Expression
+    Update-SessionPath
+    if (-not (Test-Command 'scoop')) {
+        throw 'Scoop のインストールに失敗しました'
+    }
+    Write-Log 'Scoop をインストールしました' 'SUCCESS'
+}
+
+function Import-ScoopApps {
+    # バケットの追加に git が必要
+    if (-not (Test-Command 'git')) {
+        Write-Log 'git が見つからないため Scoop でインストールします...'
+        scoop install git
+    }
+    Write-Log "scoop import $ScoopFile"
+    scoop import $ScoopFile
+    Update-SessionPath
+}
+
+# 既存のファイル/ディレクトリを <パス>.bak_日時 に退避する
+function Backup-Item {
+    param([string]$Path)
+    $backup = "$Path.bak_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+    Move-Item -LiteralPath $Path -Destination $backup
+    Write-Log "既存のファイルをバックアップ: $backup" 'WARN'
+}
+
+# ディレクトリをジャンクションでリンクする
+# (シンボリックリンクと違い、開発者モードや管理者権限が不要)
+function New-DirectoryJunction {
+    param([string]$Source, [string]$Target)
+
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Target) | Out-Null
+
+    $existing = Get-Item -LiteralPath $Target -Force -ErrorAction SilentlyContinue
+    if ($existing) {
+        if ($existing.LinkType -eq 'Junction' -and @($existing.Target)[0] -eq $Source) {
+            Write-Log "リンク済み: $Target" 'SUCCESS'
+            return
+        }
+        Backup-Item $Target
+    }
+
+    New-Item -ItemType Junction -Path $Target -Target $Source | Out-Null
+    Write-Log "リンク作成: $Target -> $Source" 'SUCCESS'
+}
+
+# PowerShell プロファイルは、dotfiles のプロファイルを読み込むだけのファイルにする
+# (プロファイルのフォルダには他のファイルもあるためジャンクションにできない)
+function Set-ProfileLoader {
+    $loader = ". `"$ProfileSource`""
+    $current = Get-Content -LiteralPath $ProfileTarget -Raw -ErrorAction SilentlyContinue
+    if ($current -and $current.Trim() -eq $loader) {
+        Write-Log "設定済み: $ProfileTarget" 'SUCCESS'
+        return
+    }
+    if (Test-Path -LiteralPath $ProfileTarget) {
+        Backup-Item $ProfileTarget
+    }
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ProfileTarget) | Out-Null
+    Set-Content -LiteralPath $ProfileTarget -Value $loader -Encoding UTF8
+    Write-Log "プロファイル作成: $ProfileTarget -> $ProfileSource を読み込み" 'SUCCESS'
+}
+
+# ユーザー環境変数を設定する (現在のセッションにも反映)
+function Set-UserEnvironment {
+    param([string]$Name, [string]$Value)
+    if ([Environment]::GetEnvironmentVariable($Name, 'User') -eq $Value) {
+        Write-Log "設定済み: $Name=$Value" 'SUCCESS'
+    }
+    else {
+        [Environment]::SetEnvironmentVariable($Name, $Value, 'User')
+        Write-Log "ユーザー環境変数を設定: $Name=$Value" 'SUCCESS'
+    }
+    Set-Item -Path "Env:$Name" -Value $Value
+}
+
+function Install-YaziPlugins {
+    if (-not (Test-Command 'ya')) {
+        Write-Log 'ya が見つからないため Yazi のプラグインのインストールを省略します' 'WARN'
+        return
+    }
+    Write-Log 'ya pkg install を実行します...'
+    ya pkg install
+}
+
+function Install-MiseTools {
+    if (-not (Test-Command 'mise')) {
+        throw 'mise が見つかりません (scoopfile.json に mise が含まれているか確認してください)'
+    }
+    Write-Log 'mise install を実行します...'
+    mise install
+    Write-Log 'mise のツールをインストールしました' 'SUCCESS'
+}
+
+if ($SkipWinget) {
+    Write-Log 'winget のインストールを省略します' 'WARN'
+}
+else {
+    Import-WingetApps
+}
+Install-Scoop
+Import-ScoopApps
+New-DirectoryJunction -Source $MiseConfigSource -Target $MiseConfigTarget
+New-DirectoryJunction -Source $YaziConfigSource -Target $YaziConfigTarget
+New-DirectoryJunction -Source $NvimConfigSource -Target $NvimConfigTarget
+Set-UserEnvironment -Name 'MPV_HOME' -Value $MpvConfigSource
+Set-ProfileLoader
+Install-MiseTools
+Install-YaziPlugins
+
+Write-Log 'セットアップが完了しました。PowerShell を再起動してください。' 'SUCCESS'

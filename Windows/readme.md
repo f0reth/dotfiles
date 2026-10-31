@@ -1,23 +1,74 @@
 # 使い方
 
-Winget のみを使ってインストールします。
-Winget が利用できない場合は自動インストールを行います。
+GUIアプリは winget、CLIツールは Scoop、言語ランタイム (node / bun / uv) は mise で管理します。
+
+- winget で入れるアプリ: `winget.json`
+- Scoop で入れるアプリ: `scoopfile.json`
+- mise で入れるツール: `../mise/config.toml` (`os = ["linux", "macos"]` のものは Windows では入らない)
 
 ## インストール
 
+管理者ではない PowerShell で実行します (Scoop は管理者での実行を拒否します)。
+設定のリンクにはジャンクションを使うため、開発者モードは不要です。
+
 ```powershell
-# 通常の実行
 .\installer.ps1
 
-# すべての利用規約を自動承認
-.\installer.ps1 -AcceptAll
-
-# 強制再インストール
-.\installer.ps1 -Force
-
-# 詳細ログ付き
-.\installer.ps1 -Verbose
+# winget を省略 (Scoop / mise だけ反映したいとき)
+.\installer.ps1 -SkipWinget
 ```
+
+実行内容:
+
+1. `winget.json` のアプリをインストールし、インストール済みのものは最新版にアップグレード
+   (`Version` を書いたものはそのバージョンに固定)
+   - PowerShell 7 は `winget.json` に含めず、MSI 版を別にインストール / アップグレードします (下記)
+2. Scoop が無ければインストール
+3. `scoop import scoopfile.json` でアプリをインストール
+4. 設定をリンク (既存のものは `.bak_日時` に退避)
+
+   | dotfiles | リンク先 | 方法 |
+   |---|---|---|
+   | `mise/` | `~\.config\mise` | ジャンクション |
+   | `yazi/` | `%APPDATA%\yazi\config` | ジャンクション |
+   | `nvim/` | `%LOCALAPPDATA%\nvim` | ジャンクション |
+   | `mpv/` | - | ユーザー環境変数 `MPV_HOME` (Scoop 版の `portable_config` より優先される) |
+   | `starship/starship.toml` | - | dotfiles のプロファイルで `STARSHIP_CONFIG` を設定 |
+   | `Windows\Microsoft.PowerShell_profile.ps1` | `Documents\PowerShell\Microsoft.PowerShell_profile.ps1` | dotfiles 側を読み込む 1 行だけのファイルを作成 |
+
+5. `mise install` と `ya pkg install` (Yazi のプラグイン)
+
+winget のアプリによっては UAC の確認が表示されます。
+
+### PowerShell 7 について
+
+winget で普通にインストールすると MSIX 版 (パッケージ化されたアプリ) が入ります。
+MSIX 版はファイルやレジストリへの書き込みが仮想化されるなど制限があり、Claude Code などのツールが正常に動きません。
+そのため `installer.ps1` では `--installer-type wix` で MSI 版 (`C:\Program Files\PowerShell\7`) をインストールします。
+
+- MSI 版は winget の `--id` 指定では見つからず `winget upgrade` が使えないため、
+  `pwsh.exe` のバージョンが winget の最新版より古いときに MSI を上書きインストールしてアップグレードします。
+- 実行中の PowerShell 7 はアップグレードできないことがあるため、PowerShell 7 のアップグレード時は
+  **Windows PowerShell (`powershell.exe`) から** `installer.ps1` を実行してください。
+- MSIX 版が入っている場合は警告が表示されます。`Get-AppxPackage Microsoft.PowerShell | Remove-AppxPackage` で削除してください。
+- 手動でインストールする場合:
+
+  ```powershell
+  winget install --id Microsoft.PowerShell --exact --source winget --installer-type wix --scope machine
+  ```
+
+## アプリ一覧の更新
+
+- winget: アプリを追加・削除したら `winget.json` の `PackageIdentifier` を編集します。
+  ID は `winget search <名前>` で調べられます。
+  (`winget export` は Windows 標準アプリやランタイムまで含むため、出力をそのまま使わない)
+  - 通常は最新版がインストールされ、インストール済みのものも最新版にアップグレードされます。
+    (`winget.json` に無いアプリやランタイムはアップグレードしません)
+  - `"Version": "x.y.z"` を書いたパッケージ (現在は ueli) はそのバージョンでインストールされ、
+    `winget pin` でピン留めされます (`winget upgrade --all` で上がらない)。
+    固定を解除するときは `Version` を消して `winget pin remove --id <ID>` を実行します。
+- Scoop: アプリを追加・削除したら `scoopfile.json` にも反映します。
+  `scoop export` の出力は Version や Updated を含むため、Name と Source だけを書き写します。
 
 ## 実行ポリシー設定
 
@@ -37,22 +88,17 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 ```
 
-## Yazi 用スクリプトの使い方
+## PowerShell プロファイル
 
-```powershell
-PowerShell Profile Directory/
-├── Scripts\
-│   └── yazi-wrapper.ps1              # Yaziラッパースクリプト
-└── Microsoft.PowerShell_profile.ps1  # メインプロファイル
-```
+`Microsoft.PowerShell_profile.ps1` は PowerShell 7 のプロファイル
+(`Documents\PowerShell\Microsoft.PowerShell_profile.ps1`) から読み込まれます。
+zsh の設定 (`zsh/`) と同じコマンドが使えるように揃えています。
 
-```powershell
-# 通常の使用
-y
-
-# 詳細情報付きで実行（デバッグ時に有用）
-y -Verbose
-
-# 特定のディレクトリで開始
-y C:\Users
-```
+| コマンド | 内容 |
+|---|---|
+| `ls` / `ll` / `la` | eza |
+| `lt [深さ]` | eza でツリー表示 |
+| `y [ディレクトリ]` | Yazi を起動し、終了時のディレクトリに移動 |
+| `vi` / `vim` | nvim |
+| `grep` | rg |
+| `touch` / `which` | Unix 風コマンド |
