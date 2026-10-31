@@ -1,99 +1,302 @@
 #!/bin/bash
+#
+# Linux (Ubuntu / WSL) 開発環境セットアップスクリプト (apt + mise)
+#
+# 1. apt でシステムパッケージ (zsh, ビルドツールなど) をインストール
+# 2. デフォルトシェルを zsh に変更
+# 3. mise が無ければインストール
+# 4. 設定をシンボリックリンクで適用 (既存のものは <パス>.bak_日時 に退避)
+# 5. mise install でツールを、ya pkg install で Yazi のプラグインをインストール
+# 6. win32yank を配置 (WSL のみ)
+# 7. Docker をインストール
+#
+# 何度実行しても同じ結果になるようにしている (リンク済み・インストール済みのものは省略)
+#
+# 使い方:
+#   ./install.sh              # すべて実行
+#   ./install.sh --skip-apt   # apt と Docker を省略 (設定のリンクと mise だけ反映したいとき)
 
-set -e
+set -euo pipefail
+
+SKIP_APT=false
+for arg in "$@"; do
+    case "$arg" in
+        --skip-apt) SKIP_APT=true ;;
+        -h | --help)
+            sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        *)
+            echo "不明なオプション: $arg" >&2
+            exit 1
+            ;;
+    esac
+done
 
 # 色の定義
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # ログ関数
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
+log_info() { echo -e "${CYAN}[INFO]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 
 # dotfiles ディレクトリのパス
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MISE="$HOME/.local/bin/mise"
 
-# システムアップデート
-log_info "システムをアップデート中..."
-sudo apt update && sudo apt upgrade -y
-
-# 基本的な依存関係をインストール
-log_info "基本的な依存関係をインストール中..."
-sudo apt install -y curl wget git unzip gpg ca-certificates
-
-# zsh のインストール
-log_info "zsh をインストール中..."
-sudo apt install -y zsh
-
-# デフォルトシェルを zsh に変更
-log_info "デフォルトシェルを zsh に変更中..."
-chsh -s "$(which zsh)"
-
-# mise のインストール
-log_info "mise をインストール中..."
-curl https://mise.run | sh
-
-# mise で管理するツール (Neovim, tree-sitter, Starship, Sheldon, eza, ripgrep, bat, lazygit, uv, bun など) のインストール
-# link.sh の実行前でも動くよう、dotfiles 内の設定ファイルを直接参照する
-log_info "mise でツールをインストール中..."
-export MISE_GLOBAL_CONFIG_FILE="$DOTFILES_DIR/mise/config.toml"
-~/.local/bin/mise install
-
-# win32yank のインストール (WSL のみ)
-# .zshenv で Windows 側の PATH を除外しているため、Neovim がクリップボード連携に使えるよう ~/.local/bin に配置する
-if grep -qi microsoft /proc/version; then
-    log_info "win32yank をインストール中..."
-    WIN32YANK_TMP="$(mktemp -d)"
-    curl -fsSL -o "$WIN32YANK_TMP/win32yank.zip" https://github.com/equalsraf/win32yank/releases/download/v0.1.1/win32yank-x64.zip
-    unzip -o -q "$WIN32YANK_TMP/win32yank.zip" win32yank.exe -d "$WIN32YANK_TMP"
-    install -m 0755 "$WIN32YANK_TMP/win32yank.exe" ~/.local/bin/win32yank.exe
-    rm -rf "$WIN32YANK_TMP"
+# root で実行すると chsh や docker グループの対象が root になるため拒否する
+if [ "$(id -u)" -eq 0 ]; then
+    log_error "root ではなく通常のユーザーで実行してください (必要なところは sudo を使います)"
+    exit 1
 fi
 
-# Docker のインストール
-log_info "Docker をインストール中..."
-# 古いバージョンを削除
-for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
+is_wsl() {
+    grep -qi microsoft /proc/version 2>/dev/null
+}
 
-# Docker の公式 GPG キーを追加
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
+# ------------------------------
+# apt
+# ------------------------------
+install_apt_packages() {
+    log_info "システムをアップデート中..."
+    sudo apt-get update
+    sudo apt-get upgrade -y
 
-# Docker リポジトリを追加
-echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-    $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
-    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    # build-essential: Neovim の Treesitter パーサーのビルドに gcc が必要
+    log_info "基本的な依存関係をインストール中..."
+    sudo apt-get install -y zsh curl wget git unzip gpg ca-certificates build-essential
+}
 
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+# ------------------------------
+# デフォルトシェル
+# ------------------------------
+set_default_shell() {
+    local zsh_path
+    zsh_path="$(command -v zsh || true)"
+    if [ -z "$zsh_path" ]; then
+        log_warn "zsh が見つからないため、デフォルトシェルの変更を省略します"
+        return
+    fi
+    if [ "$(getent passwd "$USER" | cut -d: -f7)" = "$zsh_path" ]; then
+        log_success "デフォルトシェルは zsh です"
+        return
+    fi
+    log_info "デフォルトシェルを zsh に変更中..."
+    chsh -s "$zsh_path"
+    log_success "デフォルトシェルを zsh に変更しました (再ログイン後に反映)"
+}
 
-# Docker グループに現在のユーザーを追加
-log_info "Docker グループに現在のユーザーを追加中..."
-sudo groupadd docker 2>/dev/null || true
-sudo usermod -aG docker $USER
+# ------------------------------
+# mise
+# ------------------------------
+install_mise() {
+    if [ -x "$MISE" ]; then
+        log_success "mise はインストール済みです"
+        return
+    fi
+    log_info "mise をインストール中..."
+    curl -fsSL https://mise.run | sh
+    log_success "mise をインストールしました"
+}
 
-# Docker サービスを有効化して起動
-sudo systemctl enable docker
-sudo systemctl start docker
+install_mise_tools() {
+    # Neovim, tree-sitter, Starship, Sheldon, eza, ripgrep, bat, lazygit, uv, bun など
+    log_info "mise install を実行します..."
+    "$MISE" install
+    log_success "mise のツールをインストールしました"
+}
 
-sudo apt autoremove -y && sudo apt autoclean -y
+# ------------------------------
+# 設定のリンク
+# ------------------------------
+# 既存のファイル/ディレクトリを <パス>.bak_日時 に退避する
+backup_item() {
+    local path="$1"
+    local backup
+    backup="$path.bak_$(date +%Y%m%d_%H%M%S)"
+    mv "$path" "$backup"
+    log_warn "既存のファイルをバックアップ: $backup"
+}
 
-log_info "インストールが完了しました！"
-log_warn "注意: Docker を sudo なしで実行するには、ログアウトして再度ログインする必要があります。"
-log_warn "注意: zsh をデフォルトシェルとして使用するには、ログアウトして再度ログインする必要があります。"
+# シンボリックリンクを作成する (リンク済みなら何もしない)
+create_symlink() {
+    local source="$1"
+    local target="$2"
+
+    if [ ! -e "$source" ]; then
+        log_warn "ソースファイルが存在しません: $source"
+        return
+    fi
+
+    mkdir -p "$(dirname "$target")"
+
+    if [ -L "$target" ] && [ "$(readlink "$target")" = "$source" ]; then
+        log_success "リンク済み: $target"
+        return
+    fi
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        backup_item "$target"
+    fi
+
+    ln -s "$source" "$target"
+    log_success "リンク作成: $target -> $source"
+}
+
+link_dotfiles() {
+    log_info "dotfiles のシンボリックリンクを作成中... ($DOTFILES_DIR)"
+
+    # zsh
+    create_symlink "$DOTFILES_DIR/zsh/.zshrc" "$HOME/.zshrc"
+    create_symlink "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
+    create_symlink "$DOTFILES_DIR/zsh/.zsh_aliases" "$HOME/.zsh_aliases"
+
+    # Starship
+    create_symlink "$DOTFILES_DIR/starship/starship.toml" "$HOME/.config/starship.toml"
+
+    # Sheldon
+    create_symlink "$DOTFILES_DIR/sheldon/plugins.toml" "$HOME/.config/sheldon/plugins.toml"
+
+    # mise
+    create_symlink "$DOTFILES_DIR/mise/config.toml" "$HOME/.config/mise/config.toml"
+
+    # Yazi
+    create_symlink "$DOTFILES_DIR/yazi" "$HOME/.config/yazi"
+
+    # Neovim (LazyVim)
+    create_symlink "$DOTFILES_DIR/nvim" "$HOME/.config/nvim"
+}
+
+# ------------------------------
+# Yazi のプラグイン
+# ------------------------------
+install_yazi_plugins() {
+    if ! "$MISE" which ya >/dev/null 2>&1; then
+        log_warn "ya が見つからないため Yazi のプラグインのインストールを省略します"
+        return
+    fi
+    log_info "ya pkg install を実行します..."
+    "$MISE" exec -- ya pkg install
+}
+
+# ------------------------------
+# win32yank (WSL のみ)
+# ------------------------------
+# .zshenv で Windows 側の PATH を除外しているため、Neovim がクリップボード連携に使えるよう ~/.local/bin に配置する
+install_win32yank() {
+    if ! is_wsl; then
+        return
+    fi
+    local dest="$HOME/.local/bin/win32yank.exe"
+    if [ -x "$dest" ]; then
+        log_success "win32yank はインストール済みです"
+        return
+    fi
+    log_info "win32yank をインストール中..."
+    local tmp
+    tmp="$(mktemp -d)"
+    curl -fsSL -o "$tmp/win32yank.zip" https://github.com/equalsraf/win32yank/releases/download/v0.1.1/win32yank-x64.zip
+    unzip -o -q "$tmp/win32yank.zip" win32yank.exe -d "$tmp"
+    install -D -m 0755 "$tmp/win32yank.exe" "$dest"
+    rm -rf "$tmp"
+    log_success "win32yank をインストールしました"
+}
+
+# ------------------------------
+# Docker
+# ------------------------------
+install_docker() {
+    if dpkg -s docker-ce >/dev/null 2>&1; then
+        log_success "Docker はインストール済みです (apt upgrade で更新済み)"
+    else
+        log_info "Docker をインストール中..."
+
+        # 競合する古いパッケージを削除 (インストールされているものだけ)
+        local pkg old_pkgs=()
+        for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do
+            if dpkg -s "$pkg" >/dev/null 2>&1; then
+                old_pkgs+=("$pkg")
+            fi
+        done
+        if [ "${#old_pkgs[@]}" -gt 0 ]; then
+            log_warn "競合するパッケージを削除: ${old_pkgs[*]}"
+            sudo apt-get remove -y "${old_pkgs[@]}"
+        fi
+
+        # Docker の公式 GPG キーを追加
+        sudo install -m 0755 -d /etc/apt/keyrings
+        sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+        # Docker リポジトリを追加
+        echo \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+            $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" |
+            sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+
+        sudo apt-get update
+        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        log_success "Docker をインストールしました"
+    fi
+
+    # Docker グループに現在のユーザーを追加
+    getent group docker >/dev/null || sudo groupadd docker
+    if id -nG "$USER" | tr ' ' '\n' | grep -qx docker; then
+        log_success "$USER は docker グループに所属しています"
+    else
+        log_info "docker グループに $USER を追加中..."
+        sudo usermod -aG docker "$USER"
+        log_success "docker グループに $USER を追加しました (再ログイン後に反映)"
+    fi
+
+    # Docker サービスを有効化して起動 (systemd が無い WSL では省略)
+    if [ -d /run/systemd/system ]; then
+        sudo systemctl enable --now docker
+    else
+        log_warn "systemd が動いていないため Docker サービスの自動起動を省略します (WSL は /etc/wsl.conf で systemd=true を設定してください)"
+    fi
+}
+
+cleanup_apt() {
+    sudo apt-get autoremove -y
+    sudo apt-get autoclean -y
+}
+
+# ------------------------------
+# メイン処理
+# ------------------------------
+# dotfiles 内で実行すると mise が mise/config.toml をローカル設定として読み込み、trust を求めるため移動する
+cd "$HOME"
+
+if [ "$SKIP_APT" = true ]; then
+    log_warn "apt と Docker のインストールを省略します"
+else
+    install_apt_packages
+fi
+set_default_shell
+install_mise
+link_dotfiles
+install_mise_tools
+install_yazi_plugins
+install_win32yank
+if [ "$SKIP_APT" = false ]; then
+    install_docker
+    cleanup_apt
+fi
+
+log_success "セットアップが完了しました！"
+log_warn "デフォルトシェルや docker グループの変更は、ログアウトして再度ログインすると反映されます。"
 
 echo ""
 echo -e "${GREEN}インストールされたツールのバージョン:${NC}"
-echo "zsh: $(zsh --version)"
-echo "mise: $(~/.local/bin/mise --version)"
-~/.local/bin/mise ls --current
-echo "docker: $(docker --version)"
+echo "zsh: $(zsh --version 2>/dev/null || echo '未インストール')"
+echo "mise: $("$MISE" --version)"
+"$MISE" ls --current
+if command -v docker >/dev/null 2>&1; then
+    echo "docker: $(docker --version)"
+fi

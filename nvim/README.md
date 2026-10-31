@@ -21,16 +21,13 @@ nvim/
         └── colorscheme.lua
 ```
 
-`link.sh` で `~/.config/nvim` がこのディレクトリへのシンボリックリンクになります。
+`install.sh` で `~/.config/nvim` がこのディレクトリへのシンボリックリンクになります。
 
 ## インストール
 
 ```bash
-# Neovim と依存ツール (mise/config.toml に記載済み)
-mise install
-
-# 設定ファイルのリンク
-./link.sh
+# Neovim と依存ツールのインストール・設定のリンク (リポジトリ直下で実行)
+./install.sh
 
 # 初回起動でプラグイン・Treesitter パーサー・LSP サーバーなどが自動でインストールされる
 nvim

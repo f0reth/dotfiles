@@ -14,19 +14,18 @@ yazi/
 └── flavors/       # テーマ本体 (ya pkg がインストール。git 管理外)
 ```
 
-`link.sh` で `~/.config/yazi` がこのディレクトリへのシンボリックリンクになります。
+`install.sh` で `~/.config/yazi` がこのディレクトリへのシンボリックリンクになります。
 
 ## インストール
 
+リポジトリ直下の `install.sh` を実行すると、Yazi 本体 (`mise install`)・設定のリンク・プラグイン (`ya pkg install`) までまとめて行います。
+
 ```bash
-# Yazi 本体 (mise/config.toml に記載済み)
-mise install
+./install.sh
 
-# 設定ファイルのリンク
-./link.sh
-
-# package.toml に記載されたプラグインをインストール
-ya pkg install
+# 個別に行う場合
+mise install     # Yazi 本体 (mise/config.toml に記載済み)
+ya pkg install   # package.toml に記載されたプラグインをインストール
 ```
 
 プレビューや一部の機能は外部コマンドを使います。いずれも `mise/config.toml` に記載しているため、`mise install` でまとめてインストールされます。
