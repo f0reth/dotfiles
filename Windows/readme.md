@@ -1,6 +1,6 @@
 # 使い方
 
-GUIアプリは winget、CLIツールは Scoop、言語ランタイム (node / bun / uv) は mise で管理します。
+GUIアプリは winget、CLIツールは Scoop、言語ランタイム (node / bun / uv) は mise、Rust は rustup で管理します。
 
 - winget で入れるアプリ: `winget.json`
 - Scoop で入れるアプリ: `scoopfile.json`
@@ -42,6 +42,8 @@ GUIアプリは winget、CLIツールは Scoop、言語ランタイム (node / b
    | `Windows\Microsoft.PowerShell_profile.ps1` | `Documents\PowerShell\Microsoft.PowerShell_profile.ps1` | dotfiles 側を読み込む 1 行だけのファイルを作成 |
 
 5. `mise install` と `ya pkg install` (Yazi のプラグイン)
+6. MSVC Build Tools と Rust をインストール (詳しくは下記の「Rust について」)
+   - `-SkipWinget` を付けても実行します (インストール済みなら何もしません)
 
 winget のアプリによっては UAC の確認が表示されます。
 
@@ -61,6 +63,36 @@ MSIX 版はファイルやレジストリへの書き込みが仮想化される
   ```powershell
   winget install --id Microsoft.PowerShell --exact --source winget --installer-type wix --scope machine
   ```
+
+### Rust について
+
+Rust は mise ではなく rustup で管理します。
+mise で `rust` を指定すると環境変数 `RUSTUP_TOOLCHAIN` が設定され、
+プロジェクトの `rust-toolchain.toml` より優先されてしまうためです。
+
+- **MSVC Build Tools**: Rust の既定のツールチェーン (`x86_64-pc-windows-msvc`) のリンカーとして必要です。
+  `winget.json` ではインストーラーに引数を渡せず C++ のワークロードが入らないため、
+  `installer.ps1` が `--override` でワークロード (VCTools + Windows SDK) を指定してインストールします。
+  更新は Visual Studio Installer から行います。
+- **rustup**: `rustup-init.exe` を公式サイトからダウンロードして stable を入れ、
+  Neovim 用に `rust-analyzer` コンポーネントを追加します。
+  winget の `Rustlang.Rustup` は、winget と rustup 自身の更新で二重管理になるため使いません。
+  `~\.cargo\bin` はインストーラーがユーザー環境変数 PATH に追加します。
+- MSVC Build Tools が見つからない場合、Rust のインストールは省略されます
+  (`rustup-init -y` が Visual Studio Community のインストールを始めてしまうため)。
+- WSL 側の Rust は `install.sh` で別にインストールします。
+
+```powershell
+# 更新 (ツールチェーンと rustup 本体)
+rustup update
+
+# プロジェクトでバージョンを固定する場合は、リポジトリに rust-toolchain.toml を置く
+# [toolchain]
+# channel = "1.91.0"
+# components = ["clippy", "rustfmt"]
+```
+
+`~\.cargo\credentials.toml` (crates.io のトークン) は dotfiles に含めないでください。
 
 ## アプリ一覧の更新
 

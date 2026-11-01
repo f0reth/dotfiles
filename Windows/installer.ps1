@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Windows 開発環境セットアップスクリプト (winget + Scoop + mise)
+    Windows 開発環境セットアップスクリプト (winget + Scoop + mise + rustup)
 .DESCRIPTION
     1. winget.json のアプリをインストールし、インストール済みのものは最新版にアップグレード
        (Version を指定したものはそのバージョンに固定)
@@ -15,10 +15,11 @@
        - PowerShell: プロファイルから dotfiles のプロファイルを読み込む
          (Starship の設定は dotfiles のプロファイルで STARSHIP_CONFIG を設定)
     5. mise install で言語ランタイムを、ya pkg install で Yazi のプラグインをインストール
+    6. MSVC Build Tools (C++ ワークロード) と、rustup で Rust (stable) と rust-analyzer をインストール
 .PARAMETER SkipWinget
     winget でのインストールを省略する (アプリが揃っていて時間を短縮したいとき)
 .NOTES
-    GUIアプリは winget、CLIツールは Scoop、言語ランタイムは mise で管理します。
+    GUIアプリは winget、CLIツールは Scoop、言語ランタイムは mise (Rust のみ rustup) で管理します。
     ディレクトリはジャンクションでリンクするため、開発者モードや管理者権限は不要です。
     ただし VS Code の設定ファイルはシンボリックリンクのため、開発者モードを有効にしておく必要があります
     (無効の場合は VS Code のリンクだけ省略します)。
@@ -52,6 +53,8 @@ $MpvConfigSource = Join-Path $DotfilesDir 'mpv'
 $ProfileSource = Join-Path $PSScriptRoot 'Microsoft.PowerShell_profile.ps1'
 # Windows PowerShell 5.1 から実行しても PowerShell 7 のプロファイルを対象にする
 $ProfileTarget = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PowerShell\Microsoft.PowerShell_profile.ps1'
+# rustup のインストール先 (既定の CARGO_HOME)
+$RustupExe = Join-Path $HOME '.cargo\bin\rustup.exe'
 
 function Write-Log {
     param([string]$Message, [string]$Level = 'INFO')
@@ -361,6 +364,86 @@ function Install-MiseTools {
     Write-Log 'mise のツールをインストールしました' 'SUCCESS'
 }
 
+# MSVC Build Tools の C++ ツール (Rust の msvc ツールチェーンのリンカー) が入っているか
+function Test-MsvcBuildTools {
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (-not (Test-Path -LiteralPath $vswhere)) {
+        return $false
+    }
+    # -products *: Build Tools は既定の検索対象 (Community などの IDE) に含まれないため指定する
+    $path = & $vswhere -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -latest -property installationPath
+    [bool]$path
+}
+
+# MSVC Build Tools をインストールする
+# - winget import ではインストーラーに引数を渡せず、ワークロード無しの空の Build Tools が入るため winget.json には書かない
+# - C++ ビルドツール (VCTools) のワークロードを、推奨コンポーネント (Windows SDK を含む) 付きで入れる
+# - Rust に必要なため -SkipWinget でも実行する (インストール済みなら何もしない)
+# - インストール後の更新は Visual Studio Installer から行う
+function Install-MsvcBuildTools {
+    if (Test-MsvcBuildTools) {
+        Write-Log 'MSVC Build Tools はインストール済みです' 'SUCCESS'
+        return
+    }
+    if (-not (Test-Command 'winget')) {
+        Write-Log 'winget が見つからないため MSVC Build Tools のインストールを省略します' 'WARN'
+        return
+    }
+    Write-Log 'MSVC Build Tools をインストールします (数 GB のダウンロードがあり時間がかかります)...'
+    winget install --id Microsoft.VisualStudio.BuildTools --exact --source winget `
+        --override '--quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended' `
+        --accept-package-agreements --accept-source-agreements | Out-Host
+    if (Test-MsvcBuildTools) {
+        Write-Log 'MSVC Build Tools をインストールしました' 'SUCCESS'
+    }
+    else {
+        Write-Log "MSVC Build Tools の C++ ツールが見つかりません (exit code: $LASTEXITCODE)。Build Tools が入っている場合は、Visual Studio Installer から「C++ によるデスクトップ開発」を追加してください" 'WARN'
+    }
+}
+
+# Rust を rustup でインストールする
+# - mise では管理しない (プロジェクトごとのバージョンは rust-toolchain.toml で指定する)
+# - winget の Rustlang.Rustup は使わない (winget upgrade と rustup self update で二重管理になるため)
+# - rustup-init がユーザー環境変数 PATH に ~\.cargo\bin を追加する
+# - インストール後の更新は rustup update を実行する
+function Install-Rust {
+    if (Test-Path -LiteralPath $RustupExe) {
+        Write-Log 'rustup はインストール済みです (更新は rustup update)' 'SUCCESS'
+    }
+    elseif (-not (Test-MsvcBuildTools)) {
+        # MSVC が無いと rustup-init -y が Visual Studio Community のインストールを始めるため省略する
+        Write-Log 'MSVC Build Tools が見つからないため Rust のインストールを省略します' 'WARN'
+        return
+    }
+    else {
+        $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'aarch64' } else { 'x86_64' }
+        $url = "https://static.rust-lang.org/rustup/dist/$arch-pc-windows-msvc/rustup-init.exe"
+        $init = Join-Path ([IO.Path]::GetTempPath()) "rustup-init-$PID.exe"
+        Write-Log 'rustup と Rust (stable) をインストールします...'
+        try {
+            # Windows PowerShell 5.1 は進捗表示でダウンロードが遅くなるため消す
+            $ProgressPreference = 'SilentlyContinue'
+            Invoke-WebRequest -Uri $url -OutFile $init -UseBasicParsing
+            & $init -y --default-toolchain stable --profile default
+            $code = $LASTEXITCODE
+        }
+        finally {
+            Remove-Item -LiteralPath $init -Force -ErrorAction SilentlyContinue
+        }
+        if ($code -ne 0) {
+            Write-Log "Rust のインストールに失敗しました (exit code: $code)" 'WARN'
+            return
+        }
+        Update-SessionPath
+        Write-Log 'Rust をインストールしました' 'SUCCESS'
+    }
+    # Neovim (LazyVim の rust extra) が使う rust-analyzer は、ツールチェーンとバージョンを揃えるため rustup で入れる
+    & $RustupExe component add rust-analyzer
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log 'rust-analyzer のインストールに失敗しました (rustup default stable を実行してから再実行してください)' 'WARN'
+    }
+}
+
 if ($SkipWinget) {
     Write-Log 'winget のインストールを省略します' 'WARN'
 }
@@ -377,5 +460,7 @@ Set-UserEnvironment -Name 'MPV_HOME' -Value $MpvConfigSource
 Set-ProfileLoader
 Install-MiseTools
 Install-YaziPlugins
+Install-MsvcBuildTools
+Install-Rust
 
 Write-Log 'セットアップが完了しました。PowerShell を再起動してください。' 'SUCCESS'

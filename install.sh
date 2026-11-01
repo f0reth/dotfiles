@@ -7,9 +7,10 @@
 # 3. mise が無ければインストール
 # 4. 設定をシンボリックリンクで適用 (既存のものは <パス>.bak_日時 に退避)
 # 5. mise install でツールを、ya pkg install で Yazi のプラグインをインストール
-# 6. bash 用の ble.sh をインストール
-# 7. win32yank を配置 (WSL のみ)
-# 8. Docker をインストール
+# 6. rustup で Rust (stable) と rust-analyzer をインストール
+# 7. bash 用の ble.sh をインストール
+# 8. win32yank を配置 (WSL のみ)
+# 9. Docker をインストール
 #
 # 何度実行しても同じ結果になるようにしている (リンク済み・インストール済みのものは省略)
 #
@@ -24,7 +25,7 @@ for arg in "$@"; do
     case "$arg" in
         --skip-apt) SKIP_APT=true ;;
         -h | --help)
-            sed -n '3,18p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '3,19p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *)
@@ -69,7 +70,7 @@ install_apt_packages() {
     sudo apt-get update
     sudo apt-get upgrade -y
 
-    # build-essential: Neovim の Treesitter パーサーのビルドに gcc が必要
+    # build-essential: Neovim の Treesitter パーサーのビルドと、Rust のリンカー (cc) に必要
     # bash-completion: bash の補完定義 / xz-utils: ble.sh の展開に必要
     log_info "基本的な依存関係をインストール中..."
     sudo apt-get install -y zsh bash-completion curl wget git unzip xz-utils gpg ca-certificates build-essential
@@ -192,6 +193,28 @@ install_yazi_plugins() {
 }
 
 # ------------------------------
+# Rust (rustup)
+# ------------------------------
+# Rust は mise ではなく rustup で管理する (プロジェクトごとのバージョンは rust-toolchain.toml で指定する)
+# PATH は .zshenv / .bashrc で設定するため --no-modify-path を付ける
+# インストール後の更新は rustup update を実行する
+install_rust() {
+    local rustup="$HOME/.cargo/bin/rustup"
+    if [ -x "$rustup" ]; then
+        log_success "rustup はインストール済みです (更新は rustup update)"
+    else
+        log_info "rustup と Rust (stable) をインストール中..."
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
+            sh -s -- -y --no-modify-path --default-toolchain stable --profile default
+        log_success "Rust をインストールしました"
+    fi
+    # Neovim (LazyVim の rust extra) が使う rust-analyzer は、ツールチェーンとバージョンを揃えるため rustup で入れる
+    if ! "$rustup" component add rust-analyzer; then
+        log_warn "rust-analyzer のインストールに失敗しました (rustup default stable を実行してから再実行してください)"
+    fi
+}
+
+# ------------------------------
 # ble.sh (bash の補完・サジェスト・シンタックスハイライト)
 # ------------------------------
 # インストール後の更新は bash 上で ble-update を実行する
@@ -309,6 +332,7 @@ install_mise
 link_dotfiles
 install_mise_tools
 install_yazi_plugins
+install_rust
 install_blesh
 install_win32yank
 if [ "$SKIP_APT" = false ]; then
@@ -324,6 +348,9 @@ echo -e "${GREEN}インストールされたツールのバージョン:${NC}"
 echo "zsh: $(zsh --version 2>/dev/null || echo '未インストール')"
 echo "mise: $("$MISE" --version)"
 "$MISE" ls --current
+if [ -x "$HOME/.cargo/bin/rustc" ]; then
+    echo "rust: $("$HOME/.cargo/bin/rustc" --version)"
+fi
 if command -v docker >/dev/null 2>&1; then
     echo "docker: $(docker --version)"
 fi

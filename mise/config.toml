@@ -1,6 +1,9 @@
 [tools]
 # ---------------------------------------------------------------
 # 言語ランタイム: 全OSでmiseが管理
+# Rust だけは rustup で管理する (install.sh / Windows/installer.ps1 でインストール)
+#   mise で rust を指定すると RUSTUP_TOOLCHAIN が設定され、
+#   プロジェクトの rust-toolchain.toml より優先されてしまうため
 # ---------------------------------------------------------------
 bun = "latest"
 node = "lts"

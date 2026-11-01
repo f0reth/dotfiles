@@ -16,6 +16,7 @@ path=(
     # 対話シェルでは .zshrc の mise activate が実体のパスを前に追加するのでそちらが優先される
     $HOME/.local/share/mise/shims(N-/)
     $HOME/.local/bin(N-/)
+    $HOME/.cargo/bin(N-/)  # rustup (cargo / rustc など)
     $HOME/.bun/bin(N-/)
     ${path:#/mnt/c/*}
     /usr/local/go/bin(N-/)

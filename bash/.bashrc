@@ -19,6 +19,7 @@ __path_add() {
 # 対話シェルでは後の mise activate が実体のパスを前に追加するのでそちらが優先される
 __path_add "$HOME/.local/share/mise/shims"
 __path_add "$HOME/.local/bin"
+__path_add "$HOME/.cargo/bin"  # rustup (cargo / rustc など)
 __path_add "$HOME/.bun/bin"
 IFS=: read -ra __path_old <<< "$PATH"
 for __path_dir in "${__path_old[@]}"; do
