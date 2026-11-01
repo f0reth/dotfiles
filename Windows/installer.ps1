@@ -10,6 +10,7 @@
     3. scoopfile.json のバケット/アプリを scoop import でインストール
     4. 設定を適用する
        - mise / Yazi / Neovim: 設定ディレクトリをジャンクションでリンク
+       - VS Code: settings.json / keybindings.json をシンボリックリンクでリンク
        - mpv: ユーザー環境変数 MPV_HOME を設定
        - PowerShell: プロファイルから dotfiles のプロファイルを読み込む
          (Starship の設定は dotfiles のプロファイルで STARSHIP_CONFIG を設定)
@@ -18,7 +19,9 @@
     winget でのインストールを省略する (アプリが揃っていて時間を短縮したいとき)
 .NOTES
     GUIアプリは winget、CLIツールは Scoop、言語ランタイムは mise で管理します。
-    ジャンクションを使うため、開発者モードや管理者権限は不要です。
+    ディレクトリはジャンクションでリンクするため、開発者モードや管理者権限は不要です。
+    ただし VS Code の設定ファイルはシンボリックリンクのため、開発者モードを有効にしておく必要があります
+    (無効の場合は VS Code のリンクだけ省略します)。
 #>
 
 param(
@@ -38,6 +41,11 @@ $YaziConfigTarget = Join-Path $env:APPDATA 'yazi\config'
 # Windows 版 Neovim の設定ディレクトリは %LOCALAPPDATA%\nvim
 $NvimConfigSource = Join-Path $DotfilesDir 'nvim'
 $NvimConfigTarget = Join-Path $env:LOCALAPPDATA 'nvim'
+# VS Code のユーザー設定は %APPDATA%\Code\User
+# (フォルダには履歴や拡張機能の状態もあるため、管理する 2 ファイルだけをシンボリックリンクにする)
+$VSCodeConfigSource = Join-Path $DotfilesDir 'vscode'
+$VSCodeConfigTarget = Join-Path $env:APPDATA 'Code\User'
+$VSCodeConfigFiles = @('settings.json', 'keybindings.json')
 # Scoop 版 mpv は本体横の portable_config を読むため、MPV_HOME で dotfiles を優先させる
 # (エクスプローラーから起動しても効くよう、プロファイルではなくユーザー環境変数に設定する)
 $MpvConfigSource = Join-Path $DotfilesDir 'mpv'
@@ -243,6 +251,68 @@ function New-DirectoryJunction {
     Write-Log "リンク作成: $Target -> $Source" 'SUCCESS'
 }
 
+# ファイルをシンボリックリンクでリンクする
+# (開発者モードが有効なら管理者権限なしで作成できる)
+function New-FileSymlink {
+    param([string]$Source, [string]$Target)
+
+    if (-not (Test-Path -LiteralPath $Source -PathType Leaf)) {
+        Write-Log "ソースファイルが存在しません: $Source" 'WARN'
+        return
+    }
+
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Target) | Out-Null
+
+    $existing = Get-Item -LiteralPath $Target -Force -ErrorAction SilentlyContinue
+    if ($existing) {
+        if ($existing.LinkType -eq 'SymbolicLink' -and @($existing.Target)[0] -eq $Source) {
+            Write-Log "リンク済み: $Target" 'SUCCESS'
+            return
+        }
+        Backup-Item $Target
+    }
+
+    if (-not (New-SymlinkWithMklink -Source $Source -Target $Target)) {
+        throw "シンボリックリンクの作成に失敗しました: $Target"
+    }
+    Write-Log "リンク作成: $Target -> $Source" 'SUCCESS'
+}
+
+# mklink でファイルのシンボリックリンクを作る
+# (Windows PowerShell 5.1 の New-Item は開発者モードでも管理者権限を求めるため mklink を使う)
+function New-SymlinkWithMklink {
+    param([string]$Source, [string]$Target)
+    cmd /c mklink "$Target" "$Source" 2>&1 | Out-Null
+    $LASTEXITCODE -eq 0
+}
+
+# シンボリックリンクを作成できるか (開発者モードが有効、または管理者として実行) を調べる
+function Test-SymlinkAvailable {
+    $dir = Join-Path ([IO.Path]::GetTempPath()) "symlink-test-$PID"
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    try {
+        $source = Join-Path $dir 'source'
+        New-Item -ItemType File -Path $source | Out-Null
+        New-SymlinkWithMklink -Source $source -Target (Join-Path $dir 'link')
+    }
+    finally {
+        Remove-Item -LiteralPath $dir -Recurse -Force
+    }
+}
+
+function Set-VSCodeConfig {
+    if (-not (Test-SymlinkAvailable)) {
+        Write-Log 'シンボリックリンクを作成できないため VS Code の設定のリンクを省略します (設定 → システム → 開発者向け で開発者モードを有効にしてください)' 'WARN'
+        return
+    }
+    if (Get-Process -Name 'Code' -ErrorAction SilentlyContinue) {
+        Write-Log 'VS Code が起動しています。設定が上書きされることがあるため、閉じてから再実行することを推奨します' 'WARN'
+    }
+    foreach ($file in $VSCodeConfigFiles) {
+        New-FileSymlink -Source (Join-Path $VSCodeConfigSource $file) -Target (Join-Path $VSCodeConfigTarget $file)
+    }
+}
+
 # PowerShell プロファイルは、dotfiles のプロファイルを読み込むだけのファイルにする
 # (プロファイルのフォルダには他のファイルもあるためジャンクションにできない)
 function Set-ProfileLoader {
@@ -302,6 +372,7 @@ Import-ScoopApps
 New-DirectoryJunction -Source $MiseConfigSource -Target $MiseConfigTarget
 New-DirectoryJunction -Source $YaziConfigSource -Target $YaziConfigTarget
 New-DirectoryJunction -Source $NvimConfigSource -Target $NvimConfigTarget
+Set-VSCodeConfig
 Set-UserEnvironment -Name 'MPV_HOME' -Value $MpvConfigSource
 Set-ProfileLoader
 Install-MiseTools

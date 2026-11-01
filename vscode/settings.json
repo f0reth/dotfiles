@@ -1,0 +1,192 @@
+{
+  /*
+   * ワークベンチ
+   */
+  "workbench.colorTheme": "Dark Modern",
+  "workbench.iconTheme": "material-icon-theme",
+  "workbench.startupEditor": "none", // 起動時にようこそページなどを開かない
+  "workbench.editor.enablePreview": false, // シングルクリックで開いたファイルもプレビュー (斜体のタブ) にせず、普通のタブで開く
+  "workbench.editor.useModal": "off", // 設定やキーボード ショートカットなどをモーダル オーバーレイで開かず、通常のタブで開く
+  "workbench.tree.renderIndentGuides": "always", // エクスプローラーなどのツリーのインデント ガイドを常に表示
+  "workbench.secondarySideBar.defaultVisibility": "hidden", // セカンダリ サイド バー (右側のチャットなど) を最初は閉じておく
+  // エクスプローラーで関連ファイルを親ファイルの下にまとめて表示 (ファイル ネスト)
+  // ${capture} は * にマッチした部分、${extname} は拡張子
+  "explorer.fileNesting.patterns": {
+    "*.ts": "${capture}.js",
+    "*.js": "${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",
+    "*.jsx": "${capture}.js",
+    "*.tsx": "${capture}.ts",
+    "tsconfig.json": "tsconfig.*.json",
+    "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb, bun.lock",
+    // SQLite の -wal / -shm / -journal ファイル
+    "*.sqlite": "${capture}.${extname}-*",
+    "*.db": "${capture}.${extname}-*",
+    "*.sqlite3": "${capture}.${extname}-*",
+    "*.db3": "${capture}.${extname}-*",
+    "*.sdb": "${capture}.${extname}-*",
+    "*.s3db": "${capture}.${extname}-*"
+  },
+
+  /*
+   * エディター
+   */
+  "editor.fontSize": 13,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": false, // タブをスペースに変換しない
+  "editor.minimap.enabled": false,
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": false,
+  "editor.formatOnType": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.markdownlint": "explicit" // 保存時に markdownlint の自動修正を実行 (markdownlint 拡張機能)
+  },
+  "diffEditor.ignoreTrimWhitespace": false, // 差分表示で行頭・行末の空白の違いも表示する
+  "files.insertFinalNewline": true,
+
+  /*
+   * セキュリティ・リモート
+   */
+  "security.workspace.trust.untrustedFiles": "open", // 信頼済みのウィンドウで信頼されていないファイルを開くとき、確認せずに開く
+  "security.allowedUNCHosts": ["wsl.localhost"], // \\wsl.localhost\... (WSL のファイル) を確認なしで開けるようにする
+  "remote.autoForwardPortsSource": "hybrid", // ポートの自動転送: ターミナル等の出力で検出し、リッスンしているプロセスの終了で転送を解除
+
+  /*
+   * 言語ごとの設定
+   * (タブ幅 2・保存時フォーマットは全体の設定を使うため、ここではそれ以外だけ書く)
+   */
+  // Python
+  "[python]": {
+    "editor.tabSize": 4,
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit" // 保存時に import 行を整理
+    }
+  },
+
+  // JavaScript / TypeScript
+  "[javascript][javascriptreact][typescript][typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // Go (gofmt に合わせてタブでインデント)
+  "[go]": {
+    "editor.tabSize": 4,
+    "editor.insertSpaces": false,
+    "editor.defaultFormatter": "golang.go"
+  },
+  "gopls": {
+    "formatting.gofumpt": true // gofmt より厳しい gofumpt でフォーマット
+  },
+  "go.toolsManagement.autoUpdate": true, // gopls などの Go ツールを確認なしで自動更新
+
+  // JSON
+  "[json][jsonc]": {
+    "editor.insertSpaces": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "json.schemaDownload.enable": true, // $schema に書かれた URL からスキーマをダウンロードして補完・検証に使う
+  // スキーマのダウンロードを確認なしで許可するドメイン
+  "json.schemaDownload.trustedDomains": {
+    "https://aka.ms/winget-packages.schema.2.0.json": true,
+    "https://biomejs.dev": true,
+    "https://developer.microsoft.com/json-schemas/": true,
+    "https://json-schema.org/": true,
+    "https://json.schemastore.org/": true,
+    "https://raw.githubusercontent.com/devcontainers/spec/": true,
+    "https://raw.githubusercontent.com/microsoft/vscode/": true,
+    "https://schemastore.azurewebsites.net/": true,
+    "https://spec.openapis.org/": true,
+    "https://www.schemastore.org/": true
+  },
+
+  // YAML / Docker Compose / GitHub Actions
+  "[yaml]": {
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false, // ファイルの内容からインデントを推測せず、上の設定を使う
+    "editor.formatOnType": true,
+    "editor.autoIndent": "advanced", // 改行時に言語の構文に合わせてインデント
+    // 文字列 (値) の入力中にも補完候補を出す (YAML の値はほとんど文字列のため)
+    "editor.quickSuggestions": {
+      "other": true,
+      "comments": false,
+      "strings": true
+    },
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  },
+  "[dockercompose]": {
+    "editor.insertSpaces": true,
+    "editor.autoIndent": "advanced",
+    "editor.quickSuggestions": {
+      "other": true,
+      "comments": false,
+      "strings": true
+    },
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  },
+  "[github-actions-workflow]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  },
+  "yaml.yamlVersion": "1.2", // YAML 1.2 として解釈する (yes/no/on/off を真偽値にしない)
+
+  // TOML
+  "[toml]": {
+    "editor.insertSpaces": true,
+    "editor.defaultFormatter": "tamasfe.even-better-toml"
+  },
+
+  // Markdown
+  "[markdown]": {
+    "editor.insertSpaces": true
+  },
+
+  // シェルスクリプト
+  "[shellscript]": {
+    "editor.insertSpaces": true,
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  },
+
+  // Makefile (レシピ行はタブ必須)
+  "[makefile]": {
+    "editor.tabSize": 4,
+    "editor.insertSpaces": false,
+    "editor.detectIndentation": false,
+    "editor.renderWhitespace": "boundary", // 単語間の 1 つのスペース以外の空白を可視化 (タブとスペースの混在に気づけるように)
+    "files.trimTrailingWhitespace": true
+  },
+
+  // C++
+  "[cpp]": {
+    "editor.insertSpaces": true
+  },
+  // 書いておかないと、VS Code の設定ファイルで Problems loading reference のエラーが出ることがある
+  "[cpp-header]": {
+    "editor.tabSize": 2
+  },
+
+  /*
+   * AI (Copilot / Chat)
+   */
+  "chat.titleBar.signIn.enabled": false, // サインアウト時にタイトル バーの [Copilot サインイン] ボタンを表示しない
+  "chat.titleBar.openInAgentsWindow.enabled": false, // タイトル バーの [エージェント ウィンドウで開く] ボタンを表示しない
+  "github.copilot.nextEditSuggestions.enabled": false, // 次に編集しそうな箇所の提案 (NES) を無効化
+  // Copilot のインライン補完を無効化 ("*" ですべての言語が無効になる)
+  "github.copilot.enable": {
+    "*": false,
+    "plaintext": false,
+    "markdown": false,
+    "scminput": false,
+    "jsonc": false
+  },
+
+  /*
+   * 拡張機能
+   */
+  "gitlens.currentLine.enabled": false, // GitLens: カーソル行の末尾に blame (最終コミット) を表示しない
+  "biome.requireConfiguration": true, // biome.json(c) が無いプロジェクトでは Biome を動かさない
+  "openapi.sortOutlines": false, // OpenAPI: アウトラインをアルファベット順に並べ替えず、ファイルの記述順で表示
+  "redhat.telemetry.enabled": true, // Red Hat の拡張機能 (YAML) の利用状況データ送信を許可
+  // Draw.io Integration
+  "hediet.vscode-drawio.theme": "kennedy", // Draw.io エディターの UI テーマ
+  "hediet.vscode-drawio.appearance": "light", // Draw.io エディターをライト表示にする (VS Code のテーマに合わせない)
+  "hediet.vscode-drawio.resizeImages": null // 画像を貼り付けたときにリサイズするか (null: 毎回確認)
+}

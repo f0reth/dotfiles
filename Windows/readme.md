@@ -9,7 +9,10 @@ GUIアプリは winget、CLIツールは Scoop、言語ランタイム (node / b
 ## インストール
 
 管理者ではない PowerShell で実行します (Scoop は管理者での実行を拒否します)。
-設定のリンクにはジャンクションを使うため、開発者モードは不要です。
+設定のリンクには主にジャンクションを使うため、管理者権限は不要です。
+ただし VS Code の設定ファイルはシンボリックリンクでリンクするため、
+事前に開発者モードを有効にしてください (設定 → システム → 開発者向け → 開発者モード)。
+無効のままだと VS Code のリンクだけ省略されます。
 
 ```powershell
 .\installer.ps1
@@ -32,6 +35,8 @@ GUIアプリは winget、CLIツールは Scoop、言語ランタイム (node / b
    | `mise/` | `~\.config\mise` | ジャンクション |
    | `yazi/` | `%APPDATA%\yazi\config` | ジャンクション |
    | `nvim/` | `%LOCALAPPDATA%\nvim` | ジャンクション |
+   | `vscode/settings.json` | `%APPDATA%\Code\User\settings.json` | シンボリックリンク (開発者モードが必要。VS Code を閉じてから実行) |
+   | `vscode/keybindings.json` | `%APPDATA%\Code\User\keybindings.json` | シンボリックリンク (同上) |
    | `mpv/` | - | ユーザー環境変数 `MPV_HOME` (Scoop 版の `portable_config` より優先される) |
    | `starship/starship.toml` | - | dotfiles のプロファイルで `STARSHIP_CONFIG` を設定 |
    | `Windows\Microsoft.PowerShell_profile.ps1` | `Documents\PowerShell\Microsoft.PowerShell_profile.ps1` | dotfiles 側を読み込む 1 行だけのファイルを作成 |
