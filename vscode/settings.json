@@ -201,9 +201,5 @@
     "--fallback-style=llvm"
   ],
   // C/C++ 拡張機能 (ms-vscode.cpptools) はデバッガーとしてだけ使い、IntelliSense は clangd と競合するため切る
-  "C_Cpp.intelliSenseEngine": "disabled",
-  // Draw.io Integration
-  "hediet.vscode-drawio.theme": "kennedy", // Draw.io エディターの UI テーマ
-  "hediet.vscode-drawio.appearance": "light", // Draw.io エディターをライト表示にする (VS Code のテーマに合わせない)
-  "hediet.vscode-drawio.resizeImages": null // 画像を貼り付けたときにリサイズするか (null: 毎回確認)
+  "C_Cpp.intelliSenseEngine": "disabled"
 }
