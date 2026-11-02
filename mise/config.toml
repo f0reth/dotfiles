@@ -14,6 +14,7 @@ uv = "latest"
 # ---------------------------------------------------------------
 "7zip" = { version = "latest", os = ["linux", "macos"] }
 bat = { version = "latest", os = ["linux", "macos"] }
+cmake = { version = "latest", os = ["linux", "macos"] }
 eza = { version = "latest", os = ["linux", "macos"] }
 fd = { version = "latest", os = ["linux", "macos"] }
 ffmpeg = { version = "latest", os = ["linux", "macos"] }
@@ -22,6 +23,7 @@ imagemagick = { version = "latest", os = ["linux", "macos"] }
 jq = { version = "latest", os = ["linux", "macos"] }
 lazygit = { version = "latest", os = ["linux", "macos"] }
 neovim = { version = "stable", os = ["linux", "macos"] }
+ninja = { version = "latest", os = ["linux", "macos"] }
 poppler = { version = "latest", os = ["linux", "macos"] }
 resvg = { version = "latest", os = ["linux", "macos"] }  # yazi の SVG プレビュー
 ripgrep = { version = "latest", os = ["linux", "macos"] }

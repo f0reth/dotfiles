@@ -154,7 +154,10 @@
     "files.trimTrailingWhitespace": true
   },
 
-  // C++
+  // C / C++ (clangd でフォーマット。.clang-format が無いプロジェクトは LLVM スタイル)
+  "[c][cpp]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+  },
   "[cpp]": {
     "editor.insertSpaces": true
   },
@@ -185,6 +188,20 @@
   "biome.requireConfiguration": true, // biome.json(c) が無いプロジェクトでは Biome を動かさない
   "openapi.sortOutlines": false, // OpenAPI: アウトラインをアルファベット順に並べ替えず、ファイルの記述順で表示
   "redhat.telemetry.enabled": true, // Red Hat の拡張機能 (YAML) の利用状況データ送信を許可
+  // clangd (C / C++)
+  // clangd 本体は拡張機能にダウンロードさせず、Scoop (Windows) / apt (Linux) で入れたものを使う
+  // 引数は Neovim (LazyVim の clangd extra) と揃える
+  "clangd.checkUpdates": false,
+  "clangd.arguments": [
+    "--background-index",
+    "--clang-tidy",
+    "--header-insertion=iwyu",
+    "--completion-style=detailed",
+    "--function-arg-placeholders",
+    "--fallback-style=llvm"
+  ],
+  // C/C++ 拡張機能 (ms-vscode.cpptools) はデバッガーとしてだけ使い、IntelliSense は clangd と競合するため切る
+  "C_Cpp.intelliSenseEngine": "disabled",
   // Draw.io Integration
   "hediet.vscode-drawio.theme": "kennedy", // Draw.io エディターの UI テーマ
   "hediet.vscode-drawio.appearance": "light", // Draw.io エディターをライト表示にする (VS Code のテーマに合わせない)

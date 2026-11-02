@@ -20,6 +20,7 @@ __path_add() {
 __path_add "$HOME/.local/share/mise/shims"
 __path_add "$HOME/.local/bin"
 __path_add "$HOME/.cargo/bin"  # rustup (cargo / rustc など)
+__path_add "$HOME/.local/share/vcpkg"
 __path_add "$HOME/.bun/bin"
 IFS=: read -ra __path_old <<< "$PATH"
 for __path_dir in "${__path_old[@]}"; do
@@ -32,6 +33,13 @@ __path_add "/mnt/c/Users/$USER/AppData/Local/Programs/Zed/bin"
 export PATH="$__path_new"
 unset -f __path_add
 unset __path_new __path_old __path_dir
+
+# C / C++
+# vcpkg (install.sh で git clone したもの)
+export VCPKG_ROOT="$HOME/.local/share/vcpkg"
+# CMake: 既定のジェネレーターを Ninja にし、clangd 用の compile_commands.json を常に出力する
+export CMAKE_GENERATOR='Ninja'
+export CMAKE_EXPORT_COMPILE_COMMANDS='ON'
 
 # 以降は対話シェルのみ
 [[ $- == *i* ]] || return

@@ -23,6 +23,11 @@ if ($gitRoot) {
 }
 Remove-Variable gitRoot
 
+# CMake: 既定のジェネレーターを Ninja にし、clangd 用の compile_commands.json を常に出力する
+# (MSVC でビルドするときは、先に vsdev で開発者シェルを有効にする)
+$env:CMAKE_GENERATOR = 'Ninja'
+$env:CMAKE_EXPORT_COMPILE_COMMANDS = 'ON'
+
 # ------------------------------
 # mise
 # ------------------------------
@@ -71,6 +76,28 @@ function y {
         Set-Location -LiteralPath (Resolve-Path -LiteralPath $cwd).Path
     }
     Remove-Item -LiteralPath $tmp
+}
+
+# MSVC の開発者シェル (cl / link / Windows SDK の PATH や INCLUDE) を現在のセッションで有効にする
+# プロファイルで毎回読み込むと起動が遅くなるため、MSVC でビルドするときだけ実行する
+function vsdev {
+    $installerDir = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer'
+    $vswhere = Join-Path $installerDir 'vswhere.exe'
+    $vsPath = if (Test-Path -LiteralPath $vswhere) {
+        & $vswhere -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -latest -property installationPath
+    }
+    if (-not $vsPath) {
+        Write-Error 'MSVC Build Tools が見つかりません (Windows\installer.ps1 でインストールしてください)'
+        return
+    }
+    # 開発者シェルの初期化スクリプト (VsDevCmd.bat) が PATH から vswhere.exe を探すため追加する
+    # (Build Tools だけを入れた環境では Installer のフォルダーが PATH に入らない)
+    if ($env:PATH -notlike "*$installerDir*") {
+        $env:PATH += ";$installerDir"
+    }
+    Import-Module (Join-Path $vsPath 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
+    # -SkipAutomaticLocation: 開発者シェルが %USERPROFILE%\source\repos に移動しないようにする
+    Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
 }
 
 # Unix 風コマンド

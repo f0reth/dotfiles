@@ -17,6 +17,7 @@ path=(
     $HOME/.local/share/mise/shims(N-/)
     $HOME/.local/bin(N-/)
     $HOME/.cargo/bin(N-/)  # rustup (cargo / rustc など)
+    $HOME/.local/share/vcpkg(N-/)
     $HOME/.bun/bin(N-/)
     ${path:#/mnt/c/*}
     /usr/local/go/bin(N-/)
@@ -25,3 +26,10 @@ path=(
     "/mnt/c/Users/$USER/AppData/Local/Programs/Zed/bin"(N-/)
 )
 export PATH
+
+# C / C++
+# vcpkg (install.sh で git clone したもの)
+export VCPKG_ROOT="$HOME/.local/share/vcpkg"
+# CMake: 既定のジェネレーターを Ninja にし、clangd 用の compile_commands.json を常に出力する
+export CMAKE_GENERATOR='Ninja'
+export CMAKE_EXPORT_COMPILE_COMMANDS='ON'

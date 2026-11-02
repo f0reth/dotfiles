@@ -8,9 +8,10 @@
 # 4. 設定をシンボリックリンクで適用 (既存のものは <パス>.bak_日時 に退避)
 # 5. mise install でツールを、ya pkg install で Yazi のプラグインをインストール
 # 6. rustup で Rust (stable) と rust-analyzer をインストール
-# 7. bash 用の ble.sh をインストール
-# 8. win32yank を配置 (WSL のみ)
-# 9. Docker をインストール
+# 7. vcpkg (C++ のパッケージマネージャー) をインストール
+# 8. bash 用の ble.sh をインストール
+# 9. win32yank を配置 (WSL のみ)
+# 10. Docker をインストール
 #
 # 何度実行しても同じ結果になるようにしている (リンク済み・インストール済みのものは省略)
 #
@@ -25,7 +26,7 @@ for arg in "$@"; do
     case "$arg" in
         --skip-apt) SKIP_APT=true ;;
         -h | --help)
-            sed -n '3,19p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *)
@@ -74,6 +75,12 @@ install_apt_packages() {
     # bash-completion: bash の補完定義 / xz-utils: ble.sh の展開に必要
     log_info "基本的な依存関係をインストール中..."
     sudo apt-get install -y zsh bash-completion curl wget git unzip xz-utils gpg ca-certificates build-essential
+
+    # C / C++ (gcc / g++ は build-essential に含まれる。CMake / Ninja は mise で入れる)
+    # clangd / clang-format / clang-tidy: エディタ (Neovim / VS Code) の補完・フォーマット・静的解析
+    # zip / pkg-config: vcpkg がライブラリのビルドに使う
+    log_info "C / C++ の開発ツールをインストール中..."
+    sudo apt-get install -y clang clangd clang-format clang-tidy gdb lldb zip pkg-config
 }
 
 # ------------------------------
@@ -215,6 +222,25 @@ install_rust() {
 }
 
 # ------------------------------
+# vcpkg (C++ のパッケージマネージャー)
+# ------------------------------
+# ~/.local/share/vcpkg に clone する (VCPKG_ROOT と PATH は .zshenv / .bashrc で設定)
+# インストール後の更新は git -C ~/.local/share/vcpkg pull && ~/.local/share/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+install_vcpkg() {
+    local dest="$HOME/.local/share/vcpkg"
+    if [ -x "$dest/vcpkg" ]; then
+        log_success "vcpkg はインストール済みです"
+        return
+    fi
+    log_info "vcpkg をインストール中..."
+    if [ ! -d "$dest/.git" ]; then
+        git clone https://github.com/microsoft/vcpkg.git "$dest"
+    fi
+    "$dest/bootstrap-vcpkg.sh" -disableMetrics
+    log_success "vcpkg をインストールしました"
+}
+
+# ------------------------------
 # ble.sh (bash の補完・サジェスト・シンタックスハイライト)
 # ------------------------------
 # インストール後の更新は bash 上で ble-update を実行する
@@ -333,6 +359,7 @@ link_dotfiles
 install_mise_tools
 install_yazi_plugins
 install_rust
+install_vcpkg
 install_blesh
 install_win32yank
 if [ "$SKIP_APT" = false ]; then
@@ -351,6 +378,8 @@ echo "mise: $("$MISE" --version)"
 if [ -x "$HOME/.cargo/bin/rustc" ]; then
     echo "rust: $("$HOME/.cargo/bin/rustc" --version)"
 fi
+echo "g++: $(g++ --version 2>/dev/null | head -n 1 || echo '未インストール')"
+echo "clang++: $(clang++ --version 2>/dev/null | head -n 1 || echo '未インストール')"
 if command -v docker >/dev/null 2>&1; then
     echo "docker: $(docker --version)"
 fi

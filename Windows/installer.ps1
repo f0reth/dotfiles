@@ -15,7 +15,8 @@
        - PowerShell: プロファイルから dotfiles のプロファイルを読み込む
          (Starship の設定は dotfiles のプロファイルで STARSHIP_CONFIG を設定)
     5. mise install で言語ランタイムを、ya pkg install で Yazi のプラグインをインストール
-    6. MSVC Build Tools (C++ ワークロード) と、rustup で Rust (stable) と rust-analyzer をインストール
+    6. MSVC Build Tools (C++ / Rust 用) と、rustup で Rust (stable) と rust-analyzer をインストール
+       (C++ の CMake / Ninja / LLVM / vcpkg は 3. の Scoop で入る)
 .PARAMETER SkipWinget
     winget でのインストールを省略する (アプリが揃っていて時間を短縮したいとき)
 .NOTES
@@ -364,7 +365,7 @@ function Install-MiseTools {
     Write-Log 'mise のツールをインストールしました' 'SUCCESS'
 }
 
-# MSVC Build Tools の C++ ツール (Rust の msvc ツールチェーンのリンカー) が入っているか
+# MSVC Build Tools の C++ ツール (C++ のコンパイラー、Rust の msvc ツールチェーンのリンカー) が入っているか
 function Test-MsvcBuildTools {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     if (-not (Test-Path -LiteralPath $vswhere)) {
@@ -378,7 +379,7 @@ function Test-MsvcBuildTools {
 # MSVC Build Tools をインストールする
 # - winget import ではインストーラーに引数を渡せず、ワークロード無しの空の Build Tools が入るため winget.json には書かない
 # - C++ ビルドツール (VCTools) のワークロードを、推奨コンポーネント (Windows SDK を含む) 付きで入れる
-# - Rust に必要なため -SkipWinget でも実行する (インストール済みなら何もしない)
+# - C++ と Rust に必要なため -SkipWinget でも実行する (インストール済みなら何もしない)
 # - インストール後の更新は Visual Studio Installer から行う
 function Install-MsvcBuildTools {
     if (Test-MsvcBuildTools) {
