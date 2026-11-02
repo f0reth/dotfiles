@@ -21,6 +21,7 @@ charliermarsh.ruff                     # Python のフォーマッター・impor
 golang.go                              # Go (gopls / gofumpt)
 llvm-vs-code-extensions.vscode-clangd  # C / C++ (clangd 本体は Scoop の LLVM のものを使う)
 ms-vscode.cpptools                     # C / C++ のデバッガー (IntelliSense は設定で無効化)
+rust-lang.rust-analyzer                # Rust (rust-analyzer.* / rustfmt でフォーマット)
 redhat.vscode-yaml                     # YAML のフォーマッター・スキーマ検証
 tamasfe.even-better-toml               # TOML
 github.vscode-github-actions           # [github-actions-workflow] の言語モード
