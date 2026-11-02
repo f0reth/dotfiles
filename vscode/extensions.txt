@@ -14,7 +14,6 @@ esbenp.prettier-vscode                 # JS / TS / JSON のフォーマッター
 biomejs.biome                          # biome.requireConfiguration
 oxc.oxc-vscode                         # Oxc (JS / TS のリンター oxlint・フォーマッター oxfmt)
 davidanson.vscode-markdownlint         # source.fixAll.markdownlint
-foxundermoon.shell-format              # シェルスクリプトのフォーマッター
 
 # 言語
 ms-python.python                       # Python (インタープリターの選択・デバッグ)
