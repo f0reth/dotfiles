@@ -1,0 +1,29 @@
+# VS Code の拡張機能 (Windows\installer.ps1 がインストールする)
+# 1 行に 1 つ拡張機能の ID を書く。# 以降はコメント
+# ID は拡張機能のページの「識別子」、または code --list-extensions で調べられる
+
+# ワークベンチ・共通
+pkief.material-icon-theme              # workbench.iconTheme
+ms-vscode-remote.remote-wsl            # WSL のフォルダーを開く
+streetsidesoftware.code-spell-checker  # cSpell.* (.vscode/settings.json)
+f0reth.inline-markers                  # Inline Markers
+oderwat.indent-rainbow                 # インデントの深さごとに色を付ける
+
+# フォーマッター・リンター
+esbenp.prettier-vscode                 # JS / TS / JSON のフォーマッター
+biomejs.biome                          # biome.requireConfiguration
+oxc.oxc-vscode                         # Oxc (JS / TS のリンター oxlint・フォーマッター oxfmt)
+davidanson.vscode-markdownlint         # source.fixAll.markdownlint
+foxundermoon.shell-format              # シェルスクリプトのフォーマッター
+
+# 言語
+ms-python.python                       # Python (インタープリターの選択・デバッグ)
+charliermarsh.ruff                     # Python のフォーマッター・import の整理
+golang.go                              # Go (gopls / gofumpt)
+llvm-vs-code-extensions.vscode-clangd  # C / C++ (clangd 本体は Scoop の LLVM のものを使う)
+ms-vscode.cpptools                     # C / C++ のデバッガー (IntelliSense は設定で無効化)
+redhat.vscode-yaml                     # YAML のフォーマッター・スキーマ検証
+tamasfe.even-better-toml               # TOML
+github.vscode-github-actions           # [github-actions-workflow] の言語モード
+ms-azuretools.vscode-containers        # [dockercompose] の言語モード
+42crunch.vscode-openapi                # openapi.*

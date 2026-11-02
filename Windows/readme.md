@@ -42,6 +42,8 @@ C / C++ のコンパイラー (MSVC) は `installer.ps1` で管理します。
    | `starship/starship.toml` | - | dotfiles のプロファイルで `STARSHIP_CONFIG` を設定 |
    | `Windows\Microsoft.PowerShell_profile.ps1` | `Documents\PowerShell\Microsoft.PowerShell_profile.ps1` | dotfiles 側を読み込む 1 行だけのファイルを作成 |
 
+   あわせて `vscode/extensions.txt` の VS Code の拡張機能のうち、未インストールのものを `code --install-extension` で入れます。
+
 5. `mise install` と `ya pkg install` (Yazi のプラグイン)
 6. MSVC Build Tools と Rust をインストール (詳しくは下記の「C / C++ について」「Rust について」)
    - `-SkipWinget` を付けても実行します (インストール済みなら何もしません)
@@ -144,6 +146,12 @@ cmake --build build
     固定を解除するときは `Version` を消して `winget pin remove --id <ID>` を実行します。
 - Scoop: アプリを追加・削除したら `scoopfile.json` にも反映します。
   `scoop export` の出力は Version や Updated を含むため、Name と Source だけを書き写します。
+- VS Code の拡張機能: `../vscode/extensions.txt` に ID を 1 行ずつ書きます (`#` 以降はコメント)。
+  ID は `code --list-extensions` で調べられます。
+  - 一覧から消しても自動ではアンインストールされません。
+  - 更新は VS Code の拡張機能の自動更新に任せます。
+  - Windows 側にインストールされます。WSL のフォルダーを開いたウィンドウでは、
+    言語系の拡張機能は WSL 側に別に必要です (拡張機能ビューの「WSL にインストール」で入れます)。
 
 ## 実行ポリシー設定
 

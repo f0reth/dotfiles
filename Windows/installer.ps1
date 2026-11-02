@@ -10,7 +10,8 @@
     3. scoopfile.json のバケット/アプリを scoop import でインストール
     4. 設定を適用する
        - mise / Yazi / Neovim: 設定ディレクトリをジャンクションでリンク
-       - VS Code: settings.json / keybindings.json をシンボリックリンクでリンク
+       - VS Code: settings.json / keybindings.json をシンボリックリンクでリンクし、
+         vscode/extensions.txt の拡張機能をインストール
        - mpv: ユーザー環境変数 MPV_HOME を設定
        - PowerShell: プロファイルから dotfiles のプロファイルを読み込む
          (Starship の設定は dotfiles のプロファイルで STARSHIP_CONFIG を設定)
@@ -48,6 +49,7 @@ $NvimConfigTarget = Join-Path $env:LOCALAPPDATA 'nvim'
 $VSCodeConfigSource = Join-Path $DotfilesDir 'vscode'
 $VSCodeConfigTarget = Join-Path $env:APPDATA 'Code\User'
 $VSCodeConfigFiles = @('settings.json', 'keybindings.json')
+$VSCodeExtensionsFile = Join-Path $VSCodeConfigSource 'extensions.txt'
 # Scoop 版 mpv は本体横の portable_config を読むため、MPV_HOME で dotfiles を優先させる
 # (エクスプローラーから起動しても効くよう、プロファイルではなくユーザー環境変数に設定する)
 $MpvConfigSource = Join-Path $DotfilesDir 'mpv'
@@ -317,6 +319,33 @@ function Set-VSCodeConfig {
     }
 }
 
+# vscode/extensions.txt の拡張機能のうち、未インストールのものをインストールする
+# - 一覧に無い拡張機能はアンインストールしない
+# - 拡張機能の更新は VS Code の自動更新に任せる
+function Install-VSCodeExtensions {
+    if (-not (Test-Command 'code')) {
+        Write-Log 'code が見つからないため VS Code の拡張機能のインストールを省略します' 'WARN'
+        return
+    }
+    $wanted = Get-Content -LiteralPath $VSCodeExtensionsFile |
+        ForEach-Object { ($_ -replace '#.*$', '').Trim() } |
+        Where-Object { $_ }
+    # 拡張機能の ID は大文字小文字を区別しない (-notcontains も区別しない)
+    $installed = @(code --list-extensions)
+    $missing = @($wanted | Where-Object { $installed -notcontains $_ })
+    if ($missing.Count -eq 0) {
+        Write-Log 'VS Code の拡張機能はすべてインストール済みです' 'SUCCESS'
+        return
+    }
+    foreach ($ext in $missing) {
+        Write-Log "VS Code の拡張機能をインストール: $ext"
+        code --install-extension $ext
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "$ext のインストールに失敗しました (exit code: $LASTEXITCODE)" 'WARN'
+        }
+    }
+}
+
 # PowerShell プロファイルは、dotfiles のプロファイルを読み込むだけのファイルにする
 # (プロファイルのフォルダには他のファイルもあるためジャンクションにできない)
 function Set-ProfileLoader {
@@ -457,6 +486,7 @@ New-DirectoryJunction -Source $MiseConfigSource -Target $MiseConfigTarget
 New-DirectoryJunction -Source $YaziConfigSource -Target $YaziConfigTarget
 New-DirectoryJunction -Source $NvimConfigSource -Target $NvimConfigTarget
 Set-VSCodeConfig
+Install-VSCodeExtensions
 Set-UserEnvironment -Name 'MPV_HOME' -Value $MpvConfigSource
 Set-ProfileLoader
 Install-MiseTools
