@@ -4,8 +4,8 @@
 $env:EDITOR = 'nvim'
 $env:VISUAL = 'nvim'
 
-# Starship の設定 (このファイルの場所から dotfiles の starship.toml を指す)
-$env:STARSHIP_CONFIG = Join-Path (Split-Path -Parent $PSScriptRoot) 'starship\starship.toml'
+# Starship の設定 (このファイルの場所から dotfiles の Windows 用の starship.windows.toml を指す)
+$env:STARSHIP_CONFIG = Join-Path (Split-Path -Parent $PSScriptRoot) 'starship\starship.windows.toml'
 
 # Git for Windows (winget 版 / Scoop 版のどちらか)
 $gitRoot = @(

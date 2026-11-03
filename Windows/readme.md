@@ -39,7 +39,7 @@ C / C++ のコンパイラー (MSVC) は `installer.ps1` で管理します。
    | `vscode/settings.json` | `%APPDATA%\Code\User\settings.json` | シンボリックリンク (開発者モードが必要。VS Code を閉じてから実行) |
    | `vscode/keybindings.json` | `%APPDATA%\Code\User\keybindings.json` | シンボリックリンク (同上) |
    | `mpv/` | - | ユーザー環境変数 `MPV_HOME` (Scoop 版の `portable_config` より優先される) |
-   | `starship/starship.toml` | - | dotfiles のプロファイルで `STARSHIP_CONFIG` を設定 |
+   | `starship/starship.windows.toml` | - | dotfiles のプロファイルで `STARSHIP_CONFIG` を設定 (`starship.toml` に Windows 向けの設定を加えたもの) |
    | `Windows\Microsoft.PowerShell_profile.ps1` | `Documents\PowerShell\Microsoft.PowerShell_profile.ps1` | dotfiles 側を読み込む 1 行だけのファイルを作成 |
 
    あわせて `vscode/extensions.txt` の VS Code の拡張機能のうち、未インストールのものを `code --install-extension` で入れます。

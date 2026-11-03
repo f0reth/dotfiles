@@ -1,0 +1,20 @@
+# Windows 用 (PowerShell のプロファイルで STARSHIP_CONFIG に指定する)
+# starship.toml と同じ内容に、Windows 向けの設定を加えたもの
+
+# エディターの補完を設定スキーマに合わせて取得
+"$schema" = 'https://starship.rs/config-schema.json'
+
+add_newline = true
+
+[directory]
+format = "[$path]($style) "
+truncation_length = 8
+truncation_symbol = "..."
+truncate_to_repo = false
+
+[git_branch]
+format = "on [$symbol$branch]($style) "
+
+[git_status]
+# 内蔵ライブラリ (gitoxide) ではなく git コマンドで状態を取得する (Windows ではこちらの方が速い)
+use_git_executable = true
