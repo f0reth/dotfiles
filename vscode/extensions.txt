@@ -7,7 +7,7 @@ pkief.material-icon-theme              # workbench.iconTheme
 ms-vscode-remote.remote-wsl            # WSL のフォルダーを開く
 streetsidesoftware.code-spell-checker  # cSpell.* (.vscode/settings.json)
 f0reth.inline-markers                  # Inline Markers
-oderwat.indent-rainbow                 # インデントの深さごとに色を付ける
+f0reth.vscode-indent-rainbow           # インデントの深さごとに色を付ける
 
 # フォーマッター・リンター
 esbenp.prettier-vscode                 # JS / TS / JSON のフォーマッター
