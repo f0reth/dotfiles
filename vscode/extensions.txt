@@ -13,7 +13,6 @@ f0reth.vscode-indent-rainbow           # インデントの深さごとに色を
 esbenp.prettier-vscode                 # JS / TS / JSON のフォーマッター
 biomejs.biome                          # biome.requireConfiguration
 oxc.oxc-vscode                         # Oxc (JS / TS のリンター oxlint・フォーマッター oxfmt)
-davidanson.vscode-markdownlint         # source.fixAll.markdownlint
 
 # 言語
 ms-python.python                       # Python (インタープリターの選択・デバッグ)
