@@ -142,8 +142,7 @@
 
   // シェルスクリプト
   "[shellscript]": {
-    "editor.insertSpaces": true,
-    "editor.defaultFormatter": "foxundermoon.shell-format"
+    "editor.insertSpaces": true
   },
 
   // Makefile (レシピ行はタブ必須)
